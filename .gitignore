@@ -1,0 +1,28 @@
+# Large artefacts — regenerate these, never commit them.
+# LJSpeech download + extraction, ~6 GB
+data/
+# preprocessed latent memmap, ~3.3 GB
+cache/
+# codec weights, ~1.7 GB
+ckpt/
+# training checkpoints
+runs/
+# generated wavs and json results
+out/
+# slurm logs
+logs/
+# local wandb buffers
+wandb/
+# python environment
+.venv/
+# cloned upstream repos — see README
+third_party/
+
+# Generated audio pages, 10+ MB each (audio embedded as data URIs)
+listen*.html
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.ipynb_checkpoints/

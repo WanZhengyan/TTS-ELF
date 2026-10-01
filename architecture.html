@@ -1,0 +1,1004 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ELF-TTS As Built</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  *{box-sizing:border-box}
+  :root{
+    color-scheme: light;
+    --ground:#f6f7f9; --surface:#ffffff; --surface-2:#eceff4; --surface-3:#e2e6ed;
+    --ink:#171b22; --ink-2:#4a5260; --ink-3:#79818f;
+    --rule:#d7dbe3; --rule-2:#b7bfcb;
+    --clean:#0d7d72; --clean-bg:#e2f2f0;
+    --noise:#a85d08; --noise-bg:#f8eddd;
+    --txt:#3b5490;  --txt-bg:#e5eaf6;
+    --warn:#a0262b; --warn-bg:#f8e7e7;
+    --sans:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+    --serif:"IBM Plex Serif",Georgia,serif;
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --ground:#0e1116; --surface:#161b22; --surface-2:#1d232b; --surface-3:#262d37;
+      --ink:#e7eaef; --ink-2:#a9b1be; --ink-3:#7d8591;
+      --rule:#2a313b; --rule-2:#3c4550;
+      --clean:#45bdad; --clean-bg:#0f2c2a;
+      --noise:#e39c4c; --noise-bg:#33240f;
+      --txt:#8099d8;  --txt-bg:#1a2340;
+      --warn:#e4807f; --warn-bg:#331a1b;
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --ground:#0e1116; --surface:#161b22; --surface-2:#1d232b; --surface-3:#262d37;
+    --ink:#e7eaef; --ink-2:#a9b1be; --ink-3:#7d8591;
+    --rule:#2a313b; --rule-2:#3c4550;
+    --clean:#45bdad; --clean-bg:#0f2c2a;
+    --noise:#e39c4c; --noise-bg:#33240f;
+    --txt:#8099d8;  --txt-bg:#1a2340;
+    --warn:#e4807f; --warn-bg:#331a1b;
+  }
+  html,body{margin:0;padding:0}
+  body{background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.62;-webkit-font-smoothing:antialiased}
+  img{max-width:100%}
+  .wrap{max-width:980px;margin:0 auto;padding-left:18px;padding-right:18px;padding-block:0 72px}
+
+  header.mast{padding-block:40px 24px;border-bottom:2px solid var(--ink)}
+  .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin:0 0 14px}
+  h1{font-size:clamp(28px,5.4vw,42px);line-height:1.1;letter-spacing:-.02em;font-weight:600;margin:0 0 14px;text-wrap:balance}
+  .lede{font-family:var(--serif);font-size:17px;line-height:1.6;color:var(--ink-2);max-width:62ch;margin:0}
+
+  .spec{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin:28px 0 0}
+  .spec div{background:var(--surface);padding:11px 13px}
+  .spec dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin:0 0 3px}
+  .spec dd{margin:0;font-family:var(--mono);font-size:14px;font-weight:500;font-variant-numeric:tabular-nums}
+
+  nav.toc{margin:28px 0 0;padding:14px 16px;background:var(--surface);border:1px solid var(--rule);font-size:13.5px}
+  nav.toc ol{margin:0;padding-left:20px;columns:2;column-gap:28px}
+  @media (max-width:560px){nav.toc ol{columns:1}}
+  nav.toc li{margin-bottom:4px}
+  nav.toc a{color:var(--ink-2);text-decoration:none}
+  nav.toc a:hover{color:var(--clean);text-decoration:underline}
+
+  section{padding-block:40px 0;scroll-margin-top:16px}
+  h2{font-size:21px;font-weight:600;letter-spacing:-.01em;margin:0 0 6px;padding-bottom:8px;border-bottom:1px solid var(--rule-2);display:flex;align-items:baseline;gap:11px;flex-wrap:wrap}
+  h2 .num{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--clean)}
+  h3{font-size:15.5px;font-weight:600;margin:30px 0 8px}
+  h4{font-size:14px;font-weight:600;margin:22px 0 6px;color:var(--ink-2)}
+  p{margin:0 0 14px;max-width:70ch}
+  ul,ol{margin:0 0 14px;padding-left:22px;max-width:70ch}
+  li{margin-bottom:6px}
+  code{font-family:var(--mono);font-size:.875em;background:var(--surface-2);padding:.1em .34em;border-radius:2px;word-break:break-word}
+  strong{font-weight:600}
+  a{color:var(--clean)}
+  .note{font-size:13.5px;color:var(--ink-2);border-left:2px solid var(--rule-2);padding:2px 0 2px 14px;margin:0 0 14px;max-width:68ch}
+  .flag{border-left-color:var(--warn);background:var(--warn-bg);padding:11px 14px;border-radius:0 3px 3px 0;color:var(--ink)}
+  .win{border-left-color:var(--clean);background:var(--clean-bg);padding:11px 14px;border-radius:0 3px 3px 0;color:var(--ink)}
+
+  figure{margin:20px 0 26px;background:var(--surface);border:1px solid var(--rule)}
+  .scroll{overflow-x:auto;padding:16px 16px 4px}
+  figure svg{display:block;max-width:100%;height:auto;min-width:620px}
+  figcaption{font-size:12.5px;line-height:1.5;color:var(--ink-2);padding:12px 16px 14px;border-top:1px solid var(--rule);background:var(--surface-2)}
+  figcaption b{color:var(--ink);font-weight:600}
+
+  .tscroll{overflow-x:auto;margin:0 0 20px;border:1px solid var(--rule);background:var(--surface)}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:540px}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+  thead th{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);background:var(--surface-2);font-weight:600;white-space:nowrap}
+  tbody tr:last-child td{border-bottom:none}
+  td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+  tr.ours{background:var(--clean-bg)}
+  tr.ours td{font-weight:600}
+  tr.gt td{color:var(--ink-3);font-style:italic}
+  .good{color:var(--clean);font-weight:600}
+  .bad{color:var(--warn);font-weight:600}
+  .mid{color:var(--noise);font-weight:600}
+
+  pre{margin:0 0 20px;background:var(--surface);border:1px solid var(--rule);padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.6;tab-size:2}
+  pre b{color:var(--clean);font-weight:600}
+  pre i{color:var(--ink-3);font-style:normal}
+  pre u{color:var(--noise);text-decoration:none;font-weight:600}
+  pre s{color:var(--warn);text-decoration:none;font-weight:600}
+
+  .files{list-style:none;padding:0;margin:0 0 20px;max-width:none}
+  .files li{display:grid;grid-template-columns:minmax(0,205px) 1fr;gap:4px 18px;padding:10px 0;border-top:1px solid var(--rule);margin:0}
+  .files li:last-child{border-bottom:1px solid var(--rule)}
+  .files .f{font-family:var(--mono);font-size:12.5px;font-weight:500;color:var(--clean);word-break:break-word}
+  .files .d{font-size:13.5px;color:var(--ink-2)}
+  @media (max-width:560px){.files li{grid-template-columns:1fr}}
+
+  .legend{display:flex;flex-wrap:wrap;gap:7px 20px;margin:0 0 18px;font-family:var(--mono);font-size:11.5px;color:var(--ink-2)}
+  .legend span{display:flex;align-items:center;gap:7px}
+  .legend i{width:13px;height:13px;border:1.5px solid;flex:none}
+  .lg-c{background:var(--clean-bg);border-color:var(--clean)}
+  .lg-n{background:var(--noise-bg);border-color:var(--noise)}
+  .lg-t{background:var(--txt-bg);border-color:var(--txt)}
+
+  .qa{border:1px solid var(--rule);background:var(--surface);padding:0;margin:0 0 20px}
+  .qa > div{padding:14px 16px;border-top:1px solid var(--rule)}
+  .qa > div:first-child{border-top:none}
+  .qa h4{margin:0 0 7px;font-size:14.5px;color:var(--ink);font-weight:600}
+  .qa p:last-child{margin-bottom:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">voiceflow · as built, with the diagnosis chain</p>
+  <h1>ELF-TTS As Built</h1>
+  <p class="lede">The whole framework that is running on LJSpeech — how text joins the model, how it is repeated
+  onto the frame grid, what every embedding and encoder is — and the measurement chain that found which part
+  works and which part is the bottleneck.</p>
+
+  <dl class="spec">
+    <div><dt>Codec</dt><dd>WavTokenizer 40 Hz</dd></div>
+    <div><dt>Codebook</dt><dd>4096 × 512</dd></div>
+    <div><dt>latent_std</dt><dd>0.26383</dd></div>
+    <div><dt>Char vocab</dt><dd>40</dd></div>
+    <div><dt>frames / char</dt><dd>2.66</dd></div>
+    <div><dt>Cached frames</dt><dd>3.37 M</dd></div>
+  </dl>
+
+  <nav class="toc"><ol>
+    <li><a href="#s0g">Glossary — every term</a></li>
+    <li><a href="#s1">The whole framework, end to end</a></li>
+    <li><a href="#s2">Why text joins on the channel axis</a></li>
+    <li><a href="#s3">Exactly how the concatenation works</a></li>
+    <li><a href="#s4">How text is repeated onto frames</a></li>
+    <li><a href="#s5">Every embedding and encoder</a></li>
+    <li><a href="#s6">Training pipeline</a></li>
+    <li><a href="#s6b">The loss, written out</a></li>
+    <li><a href="#s6c">decoder / denoiser ratio</a></li>
+    <li><a href="#s6d">What trains, what does not</a></li>
+    <li><a href="#s6e">Every hyperparameter</a></li>
+    <li><a href="#s7">Sampling</a></li>
+    <li><a href="#s8">The diagnosis chain</a></li>
+    <li><a href="#s9">Status</a></li>
+  </ol></nav>
+</header>
+
+<section id="s0g">
+  <h2><span class="num">00</span> Glossary — every term used below</h2>
+
+  <p>Some of these are standard; <b>two are names I coined in this project</b> and are flagged as such, because
+  they will not be found in any paper.</p>
+
+  <div class="qa">
+    <div>
+      <h4>path A / path B <span style="color:var(--warn);font-weight:400;font-size:12.5px">— my names, not standard</span></h4>
+      <p>Two ways to turn one continuous 512-d vector into one discrete code id in [0, 4096). This step is
+      unavoidable: the codec decoder only accepts codes, so something has to pick one at the very end.</p>
+      <p><b>path A — nearest codebook.</b> Measure the distance from the vector to all 4096 codebook entries and
+      take the closest: <code>argmin_k ‖z − c_k‖</code>. This is what the codec itself does. No learning, no
+      parameters, deterministic.</p>
+      <p><b>path B — ELF's learned CE head.</b> A trained linear layer emits 4096 scores; take the argmax. This is
+      ELF's "late discretization", the mechanism that makes ELF different from an ordinary flow model.</p>
+      <p><b>Why compare them.</b> If path B is no better than path A, ELF's learned discretizer contributes nothing
+      on audio and you should just use nearest-neighbour — the whole premise collapses. Measured at the noise level
+      the head is trained for: <b>path B 66.96 % vs path A 3.46 %</b>, so it does contribute. Clearer names would be
+      <code>nn_decode</code> and <code>ce_decode</code>; the current wandb keys keep the old names only so the
+      in-flight runs stay comparable.</p>
+    </div>
+    <div>
+      <h4>survival / σ sweep / λ sweep</h4>
+      <p>Take a <em>real</em> latent whose correct code we know. Add noise of growing magnitude. Ask each path to
+      recover the original code. <b>Survival</b> = the fraction of frames where it still returns the right one.
+      A decoder that survives further out is more robust.</p>
+      <p>σ measures noise added to a clean latent; λ mixes clean and noise as <code>λ·x₀ + (1−λ)·ε</code>, which is
+      the form the CE head is actually trained on. The λ sweep is the fair yardstick — scoring at σ = 0 asks the
+      head for the one thing it never trains on.</p>
+    </div>
+    <div>
+      <h4>exposure gap <span style="color:var(--warn);font-weight:400;font-size:12.5px">— my name; the underlying idea is standard "exposure bias"</span></h4>
+      <p>There are two ways the model can be handed a state at, say, t = 0.7:</p>
+      <p><b>(a) teacher-forced</b> — take the true answer x₀ and mix in noise by the formula,
+      <code>z = 0.7·x₀ + 0.3·ε·2.0</code>. This is exactly what every training step looked like.</p>
+      <p><b>(b) rollout</b> — start from pure noise at t = 0, run the sampler's Euler steps, and use whatever state
+      the model has built up by the time it reaches t = 0.7.</p>
+      <p>Training only ever showed the model (a). Inference only ever gives it (b).
+      <b>exposure gap = error on (b) ÷ error on (a), at the same t.</b> A value of 1 means the rollout stays on the
+      manifold the model was trained on. We measure <b>11.6×</b> at t = 0.7 — the sampler's own state is so far
+      off-distribution that the prediction is 11.6 times worse than it would be on a proper z.</p>
+      <p>"Exposure" because the model was never exposed to its own outputs while training. Familiar from
+      autoregressive models (teacher forcing vs free running); in an ODE sampler it arises from compounding
+      integration error.</p>
+    </div>
+    <div>
+      <h4>sharpness = ‖x̂₀‖ / ‖x₀‖</h4>
+      <p>How big the model's prediction is compared with the truth. A model that cannot tell <em>which</em>
+      utterance the text specifies hedges by outputting the average of all plausible answers — and an average of
+      many different vectors is <em>shorter</em> than any one of them. So a ratio well below 1 means "blurred
+      conditional mean". Measured 0.50 → 0.57 between 5 k and 10 k steps; the target is ≈ 1.</p>
+    </div>
+    <div>
+      <h4>x₀ — and a naming trap in ELF</h4>
+      <p>ELF's code calls the clean data <code>x0</code>, but it lives at <b>t = 1</b>, because the interpolation is
+      <code>z = t·x₀ + (1−t)·ε</code> — so t = 1 is clean and t = 0 is pure noise. If you are used to diffusion
+      papers where t = 0 is clean, this is backwards. In this project <code>x₀</code> always means
+      <b>the clean codec latent</b>, whatever t it sits at.</p>
+    </div>
+    <div>
+      <h4>NFE</h4>
+      <p>Number of Function Evaluations — how many times the network runs to produce one sample.
+      <code>NFE = steps × (2 if CFG ≠ 1 else 1) + 1</code>, the <code>+1</code> being the final decode. It is the
+      honest cost metric: a quality win bought with 129 NFE against a baseline's 8 is not a win.</p>
+    </div>
+    <div>
+      <h4>CFG / SC-CFG</h4>
+      <p><b>CFG</b> (classifier-free guidance): run the model twice, once with the text and once with the text
+      zeroed, and extrapolate away from the unconditional answer — <code>v = v_u + w·(v_c − v_u)</code>. Sharpens
+      adherence to the text at the cost of a second forward pass. <b>SC-CFG</b> is ELF's variant applied to
+      self-conditioning, and it is free at sampling time because the guidance scale enters as an input token rather
+      than a second pass.</p>
+    </div>
+    <div>
+      <h4>p0 / p30</h4>
+      <p>How much real audio the model is given before it must generate. <b>p0</b> = none, the audio channel is all
+      noise and text is the only conditioning — this is <b>pure TTS</b>, and it is the LJSpeech standard.
+      <b>p30</b> = the first 30 % of frames are the true latents, so the task is infilling, which is the setting for
+      zero-shot voice cloning on multi-speaker data. Measured: the two give nearly identical numbers at this stage,
+      so the prompt is barely being used.</p>
+    </div>
+    <div>
+      <h4>What the model actually consumes — not waveforms</h4>
+      <p>The chain is <code>wav → [frozen codec encoder] → latent → <b>our model</b> → codes → [frozen codec
+      decoder] → wav</code>. Only the frozen codec ever touches a waveform. Our model's input is a sequence of
+      512-d vectors, one per 25 ms frame, and its output is a code id per frame. A 9.7 s clip is
+      <b>231,720 waveform samples</b> but only <b>386 vectors</b>, and the model predicts <b>386 integers</b>.</p>
+    </div>
+    <div>
+      <h4>latent / code / codebook</h4>
+      <p><b>latent</b> — the continuous 512-d vector the codec encoder emits per frame. The flow lives here.
+      <b>codebook</b> — a fixed table of 4096 such vectors, learned by the codec and frozen for us.
+      <b>code</b> — the index of one table entry, an integer 0–4095. The decoder reconstructs sound from codes, so
+      the code is what ultimately has to be right.</p>
+    </div>
+  </div>
+</section>
+
+<section id="s1">
+  <h2><span class="num">01</span> The whole framework, end to end</h2>
+
+  <div class="legend">
+    <span><i class="lg-c"></i> frozen / clean conditioning</span>
+    <span><i class="lg-n"></i> noised, generated</span>
+    <span><i class="lg-t"></i> text path</span>
+  </div>
+
+  <figure>
+  <div class="scroll">
+  <svg viewBox="0 0 900 530" role="img" aria-label="End-to-end pipeline: a waveform is resampled and passed through the frozen WavTokenizer encoder to a 512-dimensional pre-quantization latent which is the flow target, while the transcript becomes character ids that are average-upsampled onto the same frame grid and embedded; the two plus a self-conditioning block concatenate on the channel axis into the ELF backbone, which emits a flow prediction and code logits, and the codes go back through the frozen codec decoder to a waveform.">
+    <defs>
+      <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+      </marker>
+    </defs>
+    <g font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor">
+
+      <!-- ===== offline column headers ===== -->
+      <text x="0" y="14" font-size="11" font-weight="600" fill="var(--ink-3)">OFFLINE — preprocess.py, once</text>
+
+      <!-- audio path -->
+      <rect x="0" y="26" width="196" height="40" fill="var(--surface-2)" stroke="var(--rule-2)" stroke-width="1.5"/>
+      <text x="10" y="43" font-size="10.5" font-weight="600">wav 22.05 kHz</text>
+      <text x="10" y="58" font-size="10" fill="var(--ink-2)">LJSpeech, 12,910 clips kept</text>
+
+      <line x1="196" y1="46" x2="226" y2="46" stroke="currentColor" stroke-width="1.5" marker-end="url(#a1)"/>
+      <text x="211" y="38" font-size="9" text-anchor="middle" fill="var(--ink-3)">resample</text>
+
+      <rect x="226" y="26" width="150" height="40" fill="var(--surface-2)" stroke="var(--rule-2)" stroke-width="1.5"/>
+      <text x="236" y="43" font-size="10.5" font-weight="600">wav 24 kHz</text>
+      <text x="236" y="58" font-size="10" fill="var(--ink-2)">codec's native rate</text>
+
+      <line x1="376" y1="46" x2="406" y2="46" stroke="currentColor" stroke-width="1.5" marker-end="url(#a1)"/>
+
+      <rect x="406" y="20" width="230" height="52" fill="var(--clean-bg)" stroke="var(--clean)" stroke-width="2"/>
+      <text x="416" y="37" font-size="10.5" font-weight="600" fill="var(--clean)">WavTokenizer encoder — FROZEN</text>
+      <text x="416" y="52" font-size="10" fill="var(--clean)">SEANet conv, stride 600 → 40 Hz</text>
+      <text x="416" y="66" font-size="10" fill="var(--clean)">contextual, not a lookup table</text>
+
+      <line x1="636" y1="46" x2="666" y2="46" stroke="currentColor" stroke-width="1.5" marker-end="url(#a1)"/>
+
+      <rect x="666" y="20" width="234" height="52" fill="var(--noise-bg)" stroke="var(--noise)" stroke-width="2"/>
+      <text x="676" y="37" font-size="10.5" font-weight="600" fill="var(--noise)">x₀ — the flow target</text>
+      <text x="676" y="52" font-size="10" fill="var(--noise)">(T, 512) pre-quantization latent</text>
+      <text x="676" y="66" font-size="10" fill="var(--noise)">÷ latent_std = 0.26383</text>
+
+      <!-- code id branch -->
+      <line x1="521" y1="72" x2="521" y2="96" stroke="currentColor" stroke-width="1.5" marker-end="url(#a1)"/>
+      <rect x="406" y="96" width="230" height="36" fill="var(--clean-bg)" stroke="var(--clean)" stroke-width="1.5"/>
+      <text x="416" y="112" font-size="10.5" font-weight="600" fill="var(--clean)">VQ → code id ∈ [0, 4096)</text>
+      <text x="416" y="126" font-size="10" fill="var(--clean)">single codebook — the CE target</text>
+
+      <!-- text path -->
+      <rect x="0" y="152" width="196" height="40" fill="var(--txt-bg)" stroke="var(--txt)" stroke-width="1.5"/>
+      <text x="10" y="169" font-size="10.5" font-weight="600" fill="var(--txt)">transcript</text>
+      <text x="10" y="184" font-size="10" fill="var(--txt)">normalized column, lowercased</text>
+
+      <line x1="196" y1="172" x2="226" y2="172" stroke="currentColor" stroke-width="1.5" marker-end="url(#a1)"/>
+
+      <rect x="226" y="152" width="200" height="40" fill="var(--txt-bg)" stroke="var(--txt)" stroke-width="1.5"/>
+      <text x="236" y="169" font-size="10.5" font-weight="600" fill="var(--txt)">char ids, length N</text>
+      <text x="236" y="184" font-size="10" fill="var(--txt)">vocab 40 · mean N = 99</text>
+
+      <!-- ===== runtime ===== -->
+      <line x1="0" y1="214" x2="900" y2="214" stroke="var(--rule-2)" stroke-dasharray="4 3"/>
+      <text x="0" y="232" font-size="11" font-weight="600" fill="var(--ink-3)">PER BATCH — train.py</text>
+
+      <rect x="226" y="244" width="200" height="52" fill="var(--txt-bg)" stroke="var(--txt)" stroke-width="2"/>
+      <text x="236" y="261" font-size="10.5" font-weight="600" fill="var(--txt)">average upsample</text>
+      <text x="236" y="276" font-size="10" fill="var(--txt)">N chars → T frames</text>
+      <text x="236" y="290" font-size="10" fill="var(--txt)">⌊j·N/T⌋ · 2.66 frames/char</text>
+      <path d="M326,192 L326,244" fill="none" stroke="var(--txt)" stroke-width="1.5" marker-end="url(#a1)"/>
+
+      <line x1="426" y1="270" x2="456" y2="270" stroke="currentColor" stroke-width="1.5" marker-end="url(#a1)"/>
+      <rect x="456" y="244" width="210" height="52" fill="var(--txt-bg)" stroke="var(--txt)" stroke-width="2"/>
+      <text x="466" y="261" font-size="10.5" font-weight="600" fill="var(--txt)">nn.Embedding(40, 512)</text>
+      <text x="466" y="276" font-size="10" fill="var(--txt)">learned · 20,480 params</text>
+      <text x="466" y="290" font-size="10" fill="var(--txt)">no T5, no phonemizer</text>
+
+      <!-- three blocks -->
+      <rect x="0" y="316" width="214" height="78" fill="none" stroke="var(--rule-2)" stroke-width="1.5"/>
+      <text x="10" y="333" font-size="10.5" font-weight="600">three channel blocks</text>
+      <text x="10" y="349" font-size="10" fill="var(--noise)">z        (B,T,512)  noised</text>
+      <text x="10" y="363" font-size="10" fill="var(--clean)">x̂₀ prev  (B,T,512)  self-cond</text>
+      <text x="10" y="377" font-size="10" fill="var(--txt)">text_emb (B,T,512)  NEW</text>
+      <text x="10" y="391" font-size="9.5" fill="var(--ink-3)">all three aligned frame-by-frame</text>
+
+      <line x1="214" y1="355" x2="244" y2="355" stroke="currentColor" stroke-width="2" marker-end="url(#a1)"/>
+      <rect x="244" y="337" width="250" height="36" fill="var(--surface-3)" stroke="var(--clean)" stroke-width="2"/>
+      <text x="369" y="353" text-anchor="middle" font-size="10.5" font-weight="600">torch.cat(dim=−1) → (B,T,1536)</text>
+      <text x="369" y="367" text-anchor="middle" font-size="9.5" fill="var(--ink-3)">channel axis, not sequence axis</text>
+
+      <line x1="494" y1="355" x2="524" y2="355" stroke="currentColor" stroke-width="2" marker-end="url(#a1)"/>
+      <rect x="524" y="337" width="250" height="36" fill="var(--surface-3)" stroke="var(--clean)" stroke-width="2"/>
+      <text x="649" y="353" text-anchor="middle" font-size="10.5" font-weight="600">self_cond_proj: 1536 → 512</text>
+      <text x="649" y="367" text-anchor="middle" font-size="9.5" fill="var(--clean)">the ONLY shape change vs stock ELF</text>
+
+      <!-- backbone -->
+      <line x1="649" y1="373" x2="649" y2="395" stroke="currentColor" stroke-width="1.5" marker-end="url(#a1)"/>
+      <rect x="244" y="395" width="530" height="44" fill="var(--surface-3)" stroke="currentColor" stroke-width="2"/>
+      <text x="509" y="412" text-anchor="middle" font-size="11" font-weight="600">ELF backbone — bidirectional, unchanged</text>
+      <text x="509" y="428" text-anchor="middle" font-size="10" fill="var(--ink-2)">text_proj 512→128→hidden · 12 prefix tokens (mode/t/sc_cfg) · ELFBlock × depth · RoPE</text>
+
+      <line x1="370" y1="439" x2="370" y2="461" stroke="currentColor" stroke-width="1.5" marker-end="url(#a1)"/>
+      <line x1="640" y1="439" x2="640" y2="461" stroke="currentColor" stroke-width="1.5" marker-end="url(#a1)"/>
+
+      <rect x="230" y="461" width="280" height="40" fill="var(--noise-bg)" stroke="var(--noise)" stroke-width="1.5"/>
+      <text x="370" y="478" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--noise)">final_layer → 512</text>
+      <text x="370" y="493" text-anchor="middle" font-size="10" fill="var(--noise)">x̂₀ ⇒ velocity ⇒ L2 loss</text>
+
+      <rect x="530" y="461" width="280" height="40" fill="var(--clean-bg)" stroke="var(--clean)" stroke-width="1.5"/>
+      <text x="670" y="478" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--clean)">unembed → 4096</text>
+      <text x="670" y="493" text-anchor="middle" font-size="10" fill="var(--clean)">code logits ⇒ CE loss ⇒ argmax</text>
+
+      <line x1="810" y1="481" x2="840" y2="481" stroke="currentColor" stroke-width="1.5" marker-end="url(#a1)"/>
+      <text x="845" y="472" font-size="10" fill="var(--clean)">codec</text>
+      <text x="845" y="484" font-size="10" fill="var(--clean)">decoder</text>
+      <text x="845" y="496" font-size="10" fill="var(--clean)">→ wav</text>
+    </g>
+  </svg>
+  </div>
+  <figcaption><b>Two frozen pieces, one trained model.</b> The codec encoder and decoder never update — they define
+  the latent space the flow lives in and turn codes back into sound. Everything between the three channel blocks and
+  the two heads is stock ELF; the only structural edit is the width of the input projection.</figcaption>
+  </figure>
+</section>
+
+<section id="s2">
+  <h2><span class="num">02</span> Why text joins on the channel axis</h2>
+
+  <p>Stock ELF conditions by prepending along the <em>sequence</em> axis — the German sentence sits in front of the
+  English one, in the same latent space, with a block attention mask. For TTS that choice breaks on three counts.</p>
+
+  <figure>
+  <div class="scroll">
+  <svg viewBox="0 0 880 322" role="img" aria-label="Two conditioning layouts compared. Prepending along the sequence axis makes the sequence N plus T long and forces the model to discover which text position belongs to which audio frame. Channel concatenation keeps the sequence T long and hands the model the alignment, because frame j already carries its own character.">
+    <defs>
+      <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+      </marker>
+    </defs>
+    <g font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor">
+
+      <text x="0" y="14" font-size="11.5" font-weight="600">(a) sequence axis — stock ELF's prepend</text>
+      <rect x="0" y="26" width="150" height="30" fill="var(--txt-bg)" stroke="var(--txt)" stroke-width="1.5"/>
+      <text x="75" y="45" text-anchor="middle" font-size="10" fill="var(--txt)">N text positions</text>
+      <rect x="150" y="26" width="430" height="30" fill="var(--noise-bg)" stroke="var(--noise)" stroke-width="1.5"/>
+      <text x="365" y="45" text-anchor="middle" font-size="10" fill="var(--noise)">T audio positions</text>
+      <text x="592" y="38" font-size="10" fill="var(--ink-2)">sequence length N + T</text>
+      <text x="592" y="51" font-size="10" fill="var(--ink-2)">(+38 % at 2.66 frames/char)</text>
+
+      <!-- the unknown alignment -->
+      <path d="M40,56 C40,80 200,80 200,56" fill="none" stroke="var(--warn)" stroke-width="1.3" stroke-dasharray="3 2"/>
+      <path d="M75,56 C75,92 330,92 330,56" fill="none" stroke="var(--warn)" stroke-width="1.3" stroke-dasharray="3 2"/>
+      <path d="M115,56 C115,104 470,104 470,56" fill="none" stroke="var(--warn)" stroke-width="1.3" stroke-dasharray="3 2"/>
+      <text x="300" y="120" font-size="10.5" fill="var(--warn)">which text position drives which frame? the model must discover it</text>
+      <text x="0" y="140" font-size="10.5" fill="var(--warn)">ZipVoice measured this class of failure: WER 1.69 → 20.19 at 555 h</text>
+
+      <line x1="0" y1="158" x2="880" y2="158" stroke="var(--rule-2)"/>
+
+      <text x="0" y="180" font-size="11.5" font-weight="600" fill="var(--clean)">(b) channel axis — what ELF-TTS does</text>
+      <rect x="0" y="192" width="580" height="26" fill="var(--noise-bg)" stroke="var(--noise)" stroke-width="1.5"/>
+      <text x="290" y="209" text-anchor="middle" font-size="10" fill="var(--noise)">z — T frames × 512</text>
+      <rect x="0" y="222" width="580" height="26" fill="var(--clean-bg)" stroke="var(--clean)" stroke-width="1.5"/>
+      <text x="290" y="239" text-anchor="middle" font-size="10" fill="var(--clean)">x̂₀ self-cond — T frames × 512</text>
+      <rect x="0" y="252" width="580" height="26" fill="var(--txt-bg)" stroke="var(--txt)" stroke-width="2"/>
+      <text x="290" y="269" text-anchor="middle" font-size="10" fill="var(--txt)">text_emb — T frames × 512, upsampled</text>
+      <text x="592" y="214" font-size="10" fill="var(--ink-2)">sequence length stays T</text>
+      <text x="592" y="235" font-size="10" fill="var(--clean)">frame j already carries</text>
+      <text x="592" y="248" font-size="10" fill="var(--clean)">its own character —</text>
+      <text x="592" y="261" font-size="10" fill="var(--clean)">alignment is GIVEN</text>
+      <text x="592" y="274" font-size="10" fill="var(--clean)">not learned</text>
+
+      <!-- vertical tie -->
+      <line x1="120" y1="192" x2="120" y2="278" stroke="var(--clean)" stroke-width="1.5"/>
+      <line x1="300" y1="192" x2="300" y2="278" stroke="var(--clean)" stroke-width="1.5"/>
+      <line x1="460" y1="192" x2="460" y2="278" stroke="var(--clean)" stroke-width="1.5"/>
+      <text x="0" y="300" font-size="10.5" fill="var(--clean)">one position = one frame = one character — the three blocks are stacked, never interleaved</text>
+      <text x="0" y="316" font-size="10" fill="var(--ink-3)">and x₀ stays a pure codec latent, so the flow-matching target distribution is unchanged</text>
+    </g>
+  </svg>
+  </div>
+  <figcaption><b>The difference is whether alignment is discovered or handed over.</b> Prepending leaves it to
+  bidirectional attention, which is what needs tens of thousands of hours. Channel concatenation makes frame
+  <var>j</var>'s character an input feature.</figcaption>
+  </figure>
+
+  <h3>The three reasons, in order of weight</h3>
+  <ol>
+    <li><b>It keeps x₀ a single distribution.</b> Flow matching transports noise to a fixed target distribution. If
+    text occupied sequence positions, those positions would either become part of x₀ — making the target a mixture of
+    codec latents and text embeddings, two incompatible spaces — or have to be masked out of the loss, which is the
+    prepend design and brings problem 2.</li>
+    <li><b>Alignment stops being a search problem.</b> With upsampling, frame <var>j</var> is handed the character it
+    belongs to. This is the single decision ZipVoice's ablation priced at a 12× WER difference.</li>
+    <li><b>Sequence length stays <var>T</var>.</b> At 2.66 frames per character, prepending adds ~38 % more
+    positions, and attention is quadratic in them.</li>
+  </ol>
+
+  <div class="note win"><strong>And it is why voice cloning comes free.</strong> Because the sequence is audio frames
+  only, <code>cond_seq_mask</code> is available to mark something else — the audio prompt. ELF's
+  <code>add_noise</code>, <code>restore_cond</code> and <code>loss_mask</code> then protect exactly the prompt region
+  with no new code, so the model trains on the same infilling task that in-context cloning uses at inference.</div>
+</section>
+
+<section id="s3">
+  <h2><span class="num">03</span> Exactly how the concatenation works</h2>
+
+  <p>Stock ELF already concatenates <em>two</em> blocks on the channel axis — <code>[z, x̂₀]</code> for
+  self-conditioning. ELF-TTS adds a third in the same place. That is the whole edit.</p>
+
+  <pre><i># elf_tts/model.py — stock ELF</i>
+self.self_cond_proj = _make_linear(<s>2</s> * text_encoder_dim, text_encoder_dim, bias=True)
+...
+if x.shape[-1] == <s>2</s> * self.text_encoder_dim:
+    x = self.self_cond_proj(x.float())
+
+<i># ELF-TTS: one parameter, threaded through</i>
+self.self_cond_proj = _make_linear(<b>n_input_blocks</b> * text_encoder_dim, text_encoder_dim, bias=True)
+...
+if x.shape[-1] == <b>self.n_input_blocks</b> * self.text_encoder_dim:
+    x = self.self_cond_proj(x.float())</pre>
+
+  <pre><i># train.py — ELFTTS.forward, where the three blocks meet</i>
+def forward(self, z, sc, text_ids, t, *, text_emb=None, drop_text=None, ...):
+    if text_emb is None:
+        text_emb = self.char_embed(text_ids)          <i># (B, T, 512)</i>
+    if drop_text is not None:
+        text_emb = text_emb * (1.0 - drop_text.view(-1, 1, 1))   <i># CFG, on the text block</i>
+    <b>x = torch.cat([z, sc, text_emb], dim=-1)</b>              <i># (B, T, 1536)</i>
+    return self.elf(x, t, ...)</pre>
+
+  <div class="tscroll"><table>
+    <thead><tr><th>Tensor</th><th>Shape</th><th>Content</th></tr></thead>
+    <tbody>
+      <tr><td><code>z</code></td><td class="n">(B, T, 512)</td><td>noised latent; clean x₀ at prompt frames</td></tr>
+      <tr><td><code>sc</code></td><td class="n">(B, T, 512)</td><td>previous-step x̂₀, or zeros</td></tr>
+      <tr><td><code>text_emb</code></td><td class="n">(B, T, 512)</td><td>upsampled character embedding</td></tr>
+      <tr class="ours"><td><code>cat(..., dim=−1)</code></td><td class="n">(B, T, 1536)</td><td>channel axis — T is untouched</td></tr>
+      <tr><td><code>self_cond_proj</code></td><td class="n">1536 → 512</td><td>786,944 params vs stock 524,800</td></tr>
+      <tr class="gt"><td>cost of the edit</td><td class="n">+262,144</td><td>0.26 M, or 1.8 % of ELF-XS</td></tr>
+    </tbody>
+  </table></div>
+
+  <p><strong>Everything after the projection is byte-identical to stock ELF.</strong> The 512-d result goes through
+  <code>text_proj</code> (512 → 128 → hidden), picks up the 12 prefix tokens carrying <var>t</var>, the SC-CFG scale
+  and the mode flag, and runs the unmodified block stack.</p>
+
+  <p class="note">CFG acts by zeroing the text block per example. Stock ELF zeroes condition <em>positions</em>
+  instead; redirecting it to the channel is the one change in <code>train_step</code>, and everything else about the
+  loss, the branch draw and the self-conditioning guidance is untouched.</p>
+</section>
+
+<section id="s4">
+  <h2><span class="num">04</span> How text is repeated onto frames</h2>
+
+  <p>One line, parameter-free, pure indexing. <var>N</var> characters are spread uniformly across the clip's own
+  <var>T</var> frames, so each character occupies <var>T/N</var> consecutive frames.</p>
+
+  <pre><i># train.py — make_collate</i>
+j = np.arange(T)
+text[b, :T] = it["chars"][np.minimum(<b>(j * N) // T</b>, N - 1)]
+
+<i># character index for frame j  =  ⌊ j · N / T ⌋</i>
+<i># measured on LJSpeech: T/N = <b>2.66 frames per character</b> = 66.5 ms at 40 Hz</i></pre>
+
+  <figure>
+  <div class="scroll">
+  <svg viewBox="0 0 880 236" role="img" aria-label="A worked example: the five characters of hello spread across twenty frames, four frames each, so every frame carries exactly one character id and the boundaries fall at frames 0, 4, 8, 12 and 16.">
+    <g font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor">
+      <text x="0" y="14" font-size="11" font-weight="600">worked example — N = 5, T = 20, T/N = 4</text>
+
+      <text x="0" y="40" font-size="10.5">chars</text>
+      <g>
+        <rect x="60" y="26" width="152" height="24" fill="var(--txt-bg)" stroke="var(--txt)" stroke-width="1.5"/>
+        <text x="76" y="43" font-size="11" fill="var(--txt)">h</text>
+        <text x="106" y="43" font-size="11" fill="var(--txt)">e</text>
+        <text x="136" y="43" font-size="11" fill="var(--txt)">l</text>
+        <text x="166" y="43" font-size="11" fill="var(--txt)">l</text>
+        <text x="196" y="43" font-size="11" fill="var(--txt)">o</text>
+      </g>
+      <text x="224" y="43" font-size="10" fill="var(--ink-3)">indices 0 … 4</text>
+
+      <text x="0" y="86" font-size="10.5">frames</text>
+      <text x="0" y="100" font-size="9.5" fill="var(--ink-3)">j = 0…19</text>
+      <g>
+        <rect x="60" y="70" width="160" height="26" fill="var(--txt-bg)" stroke="var(--txt)" stroke-width="2"/>
+        <rect x="220" y="70" width="160" height="26" fill="var(--txt-bg)" stroke="var(--txt)" stroke-width="2"/>
+        <rect x="380" y="70" width="160" height="26" fill="var(--txt-bg)" stroke="var(--txt)" stroke-width="2"/>
+        <rect x="540" y="70" width="160" height="26" fill="var(--txt-bg)" stroke="var(--txt)" stroke-width="2"/>
+        <rect x="700" y="70" width="160" height="26" fill="var(--txt-bg)" stroke="var(--txt)" stroke-width="2"/>
+        <text x="140" y="88" text-anchor="middle" font-size="11" fill="var(--txt)">h h h h</text>
+        <text x="300" y="88" text-anchor="middle" font-size="11" fill="var(--txt)">e e e e</text>
+        <text x="460" y="88" text-anchor="middle" font-size="11" fill="var(--txt)">l l l l</text>
+        <text x="620" y="88" text-anchor="middle" font-size="11" fill="var(--txt)">l l l l</text>
+        <text x="780" y="88" text-anchor="middle" font-size="11" fill="var(--txt)">o o o o</text>
+      </g>
+      <g font-size="9" fill="var(--ink-3)">
+        <text x="60" y="110">0</text><text x="220" y="110">4</text><text x="380" y="110">8</text>
+        <text x="540" y="110">12</text><text x="700" y="110">16</text><text x="852" y="110">19</text>
+      </g>
+
+      <!-- mapping arrows -->
+      <path d="M76,50 L140,66" fill="none" stroke="var(--txt)" stroke-width="1"/>
+      <path d="M106,50 L300,66" fill="none" stroke="var(--txt)" stroke-width="1"/>
+      <path d="M136,50 L460,66" fill="none" stroke="var(--txt)" stroke-width="1"/>
+      <path d="M166,50 L620,66" fill="none" stroke="var(--txt)" stroke-width="1"/>
+      <path d="M196,50 L780,66" fill="none" stroke="var(--txt)" stroke-width="1"/>
+
+      <line x1="0" y1="130" x2="880" y2="130" stroke="var(--rule-2)"/>
+
+      <text x="0" y="152" font-size="11" font-weight="600">what the uniform assumption gets right and wrong</text>
+      <text x="0" y="172" font-size="10.5" fill="var(--clean)">right — monotone, surjective, roughly correct; every frame has a character and order is preserved</text>
+      <text x="0" y="188" font-size="10.5" fill="var(--warn)">wrong — real durations are not uniform: vowels run long, stops run short</text>
+      <text x="0" y="208" font-size="10.5" fill="var(--ink-2)">the bidirectional backbone can shift boundaries locally; it does not have to find them from scratch</text>
+      <text x="0" y="228" font-size="10" fill="var(--ink-3)">at inference only the TOTAL duration is needed — no per-character duration predictor</text>
+    </g>
+  </svg>
+  </div>
+  <figcaption><b>Uniform duration is an approximation the model refines, not a constraint it obeys.</b> This is
+  ZipVoice's average upsampling rather than E2/F5-TTS's filler padding — the variant that reached WER 1.69 in 60 k
+  updates where filler padding needed 500 k.</figcaption>
+  </figure>
+
+  <h3>Where the prompt's transcript goes</h3>
+  <p>Upsampling runs over the clip's <em>full</em> <var>T</var>, so frames <code>[0,P)</code> automatically carry the
+  prompt's characters and <code>[P,T)</code> the rest. In training the prompt is the first 0–30 % of the same clip,
+  which is exactly the infilling task.</p>
+  <div class="note flag"><strong>Not yet handled: a prompt from a different clip.</strong> Real zero-shot cloning uses
+  a separate reference utterance, so the character sequence must be <code>prompt_chars + target_chars</code>
+  upsampled over <code>P + T_syn</code>. The current collator only does the same-clip split. This is a gap in the
+  code, not in the design.</div>
+</section>
+
+<section id="s5">
+  <h2><span class="num">05</span> Every embedding and encoder</h2>
+
+  <div class="tscroll"><table>
+    <thead><tr><th>Component</th><th>What it is</th><th>Trained?</th><th>Params</th></tr></thead>
+    <tbody>
+      <tr class="ours"><td><b>Text</b></td><td><code>nn.Embedding(40, 512)</code> — a plain learned character table. Vocab is <code>" a–z ' " . , ; : ! ? - ( )"</code> plus pad(0) and unk(1), lowercased.</td><td class="good">trained</td><td class="n">20,480</td></tr>
+      <tr><td><b>Audio → x₀</b></td><td>WavTokenizer SEANet conv encoder → 512-d pre-quantization latent. A <em>contextual</em> encoder over the waveform, not a lookup — the real analogue of ELF's frozen T5.</td><td class="gt">frozen</td><td class="n">—</td></tr>
+      <tr><td><b>Codebook</b></td><td>4096 × 512. Supplies the CE target ids, and maps codes back for the decoder.</td><td class="gt">frozen</td><td class="n">—</td></tr>
+      <tr><td><b>Codes → wav</b></td><td>WavTokenizer Vocos-style backbone + ISTFT head.</td><td class="gt">frozen</td><td class="n">—</td></tr>
+      <tr><td>Time / SC-CFG / mode</td><td>ELF's own sinusoidal embedders plus 12 learned prefix tokens.</td><td class="good">trained</td><td class="n">in ELF</td></tr>
+      <tr class="gt"><td>T5</td><td>none — removed</td><td>—</td><td class="n">0</td></tr>
+      <tr class="gt"><td>phonemizer</td><td>none — characters only</td><td>—</td><td class="n">0</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>Why no T5, and no text encoder</h4>
+  <ul>
+    <li>Stock ELF uses frozen T5 because its generation target <em>is</em> text latents. Here the target is audio, so
+    T5's only remaining job would be text conditioning.</li>
+    <li>ZipVoice uses character tokens on LibriTTS and phonemes only on Emilia — characters match the baseline
+    setting we want to compare against.</li>
+    <li>It keeps the parameter comparison honest. A frozen 35 M pretrained text encoder sitting outside the budget
+    is an advantage Grad-TTS and Matcha-TTS do not get.</li>
+    <li>ZipVoice's own ablation prices a dedicated text encoder at 0.35 WER — small. ELF's bidirectional backbone
+    already plays that role.</li>
+  </ul>
+
+  <div class="note flag"><strong>Implementation trap worth recording.</strong> ELF's <code>encode_text</code> carries
+  <code>@torch.no_grad()</code>. A learned character embedding placed there would silently never receive gradient and
+  stay at its random initialisation. The embedding therefore lives in the <code>ELFTTS</code> wrapper, outside that
+  decorator.</div>
+</section>
+
+<section id="s6">
+  <h2><span class="num">06</span> Training pipeline</h2>
+
+  <ul class="files">
+    <li><span class="f">preprocess.py</span><span class="d">Resample, run the frozen encoder once, cache latent + code + chars. <b>6 min 46 s</b> for 13,100 clips on one H100.</span></li>
+    <li><span class="f">cache/latents.f16</span><span class="d">One flat fp16 memmap, (3,374,766 × 512) = 3.46 GB, read-only and shared across workers.</span></li>
+    <li><span class="f">train.py · make_collate</span><span class="d">Average upsampling and prompt masking — the only place the alignment decision lives.</span></li>
+    <li><span class="f">train.py · train_step</span><span class="d">Three forwards, two losses, one denominator.</span></li>
+    <li><span class="f">diagnose.py · sched_test.py · text_sens.py</span><span class="d">The three probes behind §08.</span></li>
+  </ul>
+
+  <pre>x₀   = latent / 0.26383
+text = CharEmbed(text_ids);  <u>20 % → zeros</u>        <i># CFG drop, on the text block</i>
+
+t     ~ sigmoid(𝒩(−1.5, 0.8))                  <i># mean 0.21, median 0.18</i>
+z     = t·x₀ + (1−t)·ε·2.0
+z     = <b>prompt·x₀ + (1−prompt)·z</b>               <i># the prompt is never noised</i>
+m     = <b>valid · (1 − prompt)</b>                   <i># neither loss sees the prompt</i>
+
+d     ~ Bernoulli(0.2)                         <i># per example: CE row or L2 row</i>
+λ     ~ sigmoid(𝒩(0.8, 0.8))  per token        <i># mean 0.69</i>
+z_dec = λ·x₀ + (1−λ)·ε
+z_mix = d·z_dec + (1−d)·z ;  t_mix = d·1 + (1−d)·t
+
+w     ~ logU(0.5, 5)
+x̂_u   = model(cat[z, 0,   text], t, sc_cfg=w)   <i># no_grad</i>
+v_c   = model(cat[z, x̂_u, text], t, sc_cfg=w)   <i># no_grad</i>
+v*    = (x₀−z)/clamp(1−t, 0.05) + (1 − 1/w)·(v_c − v_u)   <i># detached</i>
+
+x̂, logits = model(cat[z_mix, sc_half, text], t_mix, sc_cfg=w, decoder_active=d)
+loss  = (Σ ℓ_ce·m·d + Σ ℓ₂·m·(1−d)) / Σ m
+
+backward → clip 1.0 → AdamW → EMA</pre>
+
+  <div class="note flag"><strong>Two deliberate deviations from ELF's recipe.</strong> <b>AdamW at 3e-4</b> instead of
+  Muon at <code>blr=0.001</code>, to remove a failure mode from the first runs; and <code>decoder_prob = 0.2</code>
+  from the de-en config rather than ELF's default 0.5. Both should be closed before any headline number.</div>
+
+  <div class="tscroll"><table>
+    <thead><tr><th>Run</th><th>Model</th><th>Batch</th><th>it/s</th><th>Steps</th><th>Wall clock</th></tr></thead>
+    <tbody>
+      <tr><td>Test 1b, overfit 100</td><td class="n">ELF-T 6.69 M</td><td class="n">16</td><td class="n">27.2</td><td class="n">4,000</td><td class="n">147 s</td></tr>
+      <tr><td>Test 2, full corpus</td><td class="n">ELF-XS 14.56 M</td><td class="n">32</td><td class="n">11.8</td><td class="n">30,000</td><td class="n">42 min</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Each iteration is three forwards plus one backward. Compute is not the constraint at this scale —
+  Test 2 cost well under one GPU-hour.</p>
+</section>
+
+<section id="s6b">
+  <h2><span class="num">06b</span> The loss, written out</h2>
+
+  <p>Two objectives share one model and one denominator. Everything below is per batch of
+  <var>B</var> examples × <var>L</var> frames.</p>
+
+  <h3>Masks — what counts</h3>
+  <pre>valid[b,j]  = 1 if j &lt; T_b                 <i># a real audio frame, not padding</i>
+prompt[b,j] = 1 if j &lt; P_b                 <i># the audio prompt, pure conditioning</i>
+<b>m[b,j]      = valid[b,j] · (1 − prompt[b,j])</b>  <i># the only frames either loss sees</i></pre>
+  <p>The prompt is excluded from <em>both</em> losses and is never noised. That is what makes it
+  conditioning rather than a target, and it is why in-context cloning needs no extra code.</p>
+
+  <h3>The branch draw</h3>
+  <pre>d_b ~ Bernoulli(p_dec)        <i># ONE draw per example, not per frame</i>
+                              <i># d_b = 1 → CE row    d_b = 0 → L2 row</i></pre>
+
+  <h3>Branch A — the denoiser (L2), on rows with d_b = 0</h3>
+  <pre>t_b   ~ sigmoid(𝒩(P_mean, P_std))                <i># P_mean −1.5, P_std 0.8 → mean t 0.21</i>
+ε     ~ 𝒩(0, I)
+z     = t_b·x₀ + (1 − t_b)·ε·s_noise             <i># s_noise = 2.0</i>
+z     ← prompt·x₀ + (1 − prompt)·z               <i># prompt restored clean</i>
+
+<b>v*    = (x₀ − z) / max(1 − t_b, t_eps)</b>            <i># t_eps = 0.05, the target velocity</i>
+
+<i># SC-CFG: on a random half of rows, the target is sharpened by ELF's own guidance</i>
+w_b   ~ logU(0.5, 5)
+x̂_u   = f(z, 0,   text, t_b, w_b)                <i># no_grad</i>
+v_c   = f(z, x̂_u, text, t_b, w_b)                <i># no_grad</i>
+<b>v*    ← v* + 1[use_sc]·(1 − 1/w_b)·(v_c − v_u)</b>     <i># detached</i>
+
+<i># the model predicts x₀ directly; velocity is derived</i>
+x̂₀    = f(z_mix, sc_half, text, t_mix, w_b).flow_head
+v̂     = (x̂₀ − z) / max(1 − t_b, t_eps)
+
+<b>ℓ₂[b,j] = (1/D) Σ_c ( v̂[b,j,c] − v*[b,j,c] )²</b>      <i># mean over the 512 channels</i></pre>
+
+  <h3>Branch B — the decoder (cross-entropy), on rows with d_b = 1</h3>
+  <pre>λ[b,j] ~ sigmoid(𝒩(Q_mean, Q_std))              <i># Q_mean 0.8, Q_std 0.8 → mean λ 0.69</i>
+                                                 <i># drawn PER TOKEN, not per example</i>
+z_dec  = λ·x₀ + (1 − λ)·ε'·s_dec                 <i># s_dec = 1.0</i>
+t      = 1                                       <i># the decoder branch always sits at t = 1</i>
+
+logits = f(z_mix, sc_half, text, t_mix, w_b).code_head     <i># (B, L, 4096)</i>
+<b>ℓ_ce[b,j] = − log softmax(logits[b,j])[ code[b,j] ]</b></pre>
+
+  <h3>The combination — and why the denominator matters</h3>
+  <pre><b>L = ( Σ_{b,j} ℓ_ce[b,j]·m[b,j]·d_b  +  Σ_{b,j} ℓ₂[b,j]·m[b,j]·(1 − d_b) ) / Σ_{b,j} m[b,j]</b></pre>
+
+  <p>One denominator, <code>Σ m</code>, covering both branches. In expectation over the branch draw
+  that is</p>
+  <pre>𝔼[L] = p_dec · mean(ℓ_ce)  +  (1 − p_dec) · mean(ℓ₂)</pre>
+  <div class="note win"><strong>So <code>p_dec</code> is the actual loss weight between the two
+  objectives, not merely a sampling knob.</strong> Had each branch been normalised by its own row count,
+  the two would be weighted 50/50 regardless of <code>p_dec</code>, and the parameter would only control
+  gradient noise. ELF's single denominator is what makes the ratio meaningful — worth knowing before
+  tuning it.</div>
+
+  <h3>One forward, both branches</h3>
+  <pre>z_mix = d·z_dec + (1 − d)·z
+t_mix = d·1     + (1 − d)·t
+<i># a single forward runs BOTH heads on ALL rows; the masks select which loss applies.</i>
+<i># so there is no wasted compute beyond evaluating two cheap output heads.</i></pre>
+
+  <p>Three forwards per iteration in total: two under <code>no_grad</code> to build the SC-CFG target,
+  and one with gradient. Budget compute at ~3× a plain flow-matching step.</p>
+</section>
+
+<section id="s6c">
+  <h2><span class="num">06c</span> decoder / denoiser ratio</h2>
+
+  <div class="tscroll"><table>
+    <thead><tr><th>Source</th><th>p_dec</th><th>CE rows</th><th>L2 rows</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>configs/config.py</code> dataclass default</td><td class="n">0.5</td><td class="n">50 %</td><td class="n">50 %</td><td>overridden by every released config</td></tr>
+      <tr class="ours"><td><b>all 5 released ELF YAMLs</b> — owt B/M/L, de-en, xsum</td><td class="n">0.2</td><td class="n">20 %</td><td class="n">80 %</td><td><b>ELF's actual choice</b></td></tr>
+      <tr><td>Test 2 (ours)</td><td class="n">0.2</td><td class="n">20 %</td><td class="n">80 %</td><td>matches ELF</td></tr>
+      <tr><td>Test 3 primary (ours)</td><td class="n">0.2</td><td class="n">20 %</td><td class="n">80 %</td><td>same, 3.3× longer</td></tr>
+      <tr><td>Test 3 ablation (ours)</td><td class="n">0.5</td><td class="n">50 %</td><td class="n">50 %</td><td>more CE, less denoiser</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="note flag"><strong>A correction worth recording.</strong> I earlier described 0.5 as "ELF's
+  default" and launched a run at that value. It is only the dataclass default; all five released configs set
+  0.2, and the README's own example config says <code>decoder_prob: 0.2  # 20% decoding (CE) / 80%
+  denoising (L2)</code>. Worse, the diagnosis in §08 puts the bottleneck in the <em>denoiser</em> at low t —
+  so raising p_dec to 0.5 cuts denoiser rows from 80 % to 50 % and pushes in the wrong direction. The
+  primary Test 3 run uses 0.2; 0.5 is kept only as an ablation.</div>
+</section>
+
+<section id="s6d">
+  <h2><span class="num">06d</span> What trains and what does not</h2>
+
+  <div class="tscroll"><table>
+    <thead><tr><th>Component</th><th>Trains?</th><th>ELF-XS params</th><th>share</th></tr></thead>
+    <tbody>
+      <tr><td>ELFBlock stack (6 × 384, 12 heads)</td><td class="good">yes</td><td class="n">10,646,016</td><td class="n">73.11 %</td></tr>
+      <tr><td>unembed stage 2 — 512 → 4096 (code head)</td><td class="good">yes</td><td class="n">2,101,248</td><td class="n">14.43 %</td></tr>
+      <tr class="ours"><td>self_cond_proj — 1536 → 512 (<b>the 3-block input</b>)</td><td class="good">yes</td><td class="n">786,944</td><td class="n">5.40 %</td></tr>
+      <tr><td>time embedder + 4 prefix tokens</td><td class="good">yes</td><td class="n">248,064</td><td class="n">1.70 %</td></tr>
+      <tr><td>SC-CFG embedder + 4 prefix tokens</td><td class="good">yes</td><td class="n">248,064</td><td class="n">1.70 %</td></tr>
+      <tr><td>final_layer — hidden → 512 (flow head)</td><td class="good">yes</td><td class="n">197,504</td><td class="n">1.36 %</td></tr>
+      <tr><td>unembed stage 1 — hidden → 512</td><td class="good">yes</td><td class="n">197,120</td><td class="n">1.35 %</td></tr>
+      <tr><td>text_proj — 512 → 128 → hidden</td><td class="good">yes</td><td class="n">115,072</td><td class="n">0.79 %</td></tr>
+      <tr class="ours"><td><b>char_embed — nn.Embedding(40, 512)</b></td><td class="good">yes</td><td class="n">20,480</td><td class="n">0.14 %</td></tr>
+      <tr><td>mode tokens × 4</td><td class="good">yes</td><td class="n">1,536</td><td class="n">0.01 %</td></tr>
+      <tr class="ours"><td><b>TOTAL TRAINABLE</b></td><td class="good">—</td><td class="n">14,562,048</td><td class="n">100 %</td></tr>
+      <tr class="gt"><td>WavTokenizer encoder (SEANet conv)</td><td>frozen</td><td>—</td><td>defines x₀</td></tr>
+      <tr class="gt"><td>WavTokenizer codebook 4096 × 512</td><td>frozen</td><td>—</td><td>supplies CE targets</td></tr>
+      <tr class="gt"><td>WavTokenizer decoder (Vocos + ISTFT)</td><td>frozen</td><td>—</td><td>codes → waveform</td></tr>
+      <tr class="gt"><td>T5 / phonemizer</td><td>absent</td><td>0</td><td>—</td></tr>
+    </tbody>
+  </table></div>
+
+  <p>ELF-S for comparison: 29,573,968 trainable, of which the block stack is 85.25 % — the fixed costs
+  (<code>self_cond_proj</code>, the two heads, the embedders) do not grow with depth, so they shrink as a
+  share as the model gets bigger.</p>
+
+  <p>Every trainable tensor receives gradient through the <em>same</em> forward. The EMA shadow copy is a
+  second full set of the same parameters, updated in-place and never differentiated.</p>
+
+  <div class="note flag"><strong>The one place this can silently break.</strong>
+  <code>char_embed</code> lives in the <code>ELFTTS</code> wrapper, not inside ELF's
+  <code>encode_text</code> — which carries <code>@torch.no_grad()</code>. Put the table there instead and
+  it keeps its random initialisation forever, with no error raised. Verify by asserting
+  <code>char_embed.weight.grad is not None</code> after the first backward.</div>
+</section>
+
+<section id="s6e">
+  <h2><span class="num">06e</span> Every hyperparameter</h2>
+
+  <div class="tscroll"><table>
+    <thead><tr><th>Knob</th><th>Value</th><th>Where it came from</th></tr></thead>
+    <tbody>
+      <tr><td colspan="3" style="background:var(--surface-2);font-family:var(--mono);font-size:11px;letter-spacing:.06em">MEASURED — from Test 0 and preprocessing, not chosen</td></tr>
+      <tr class="ours"><td><code>latent_std</code></td><td class="n">0.26383</td><td>measured on 3.37 M cached frames. ELF's 0.2 is a T5-small number and is 1.32× off.</td></tr>
+      <tr class="ours"><td><code>max_length</code></td><td class="n">400</td><td>p99 of frames/clip at 40 Hz under a 10 s filter</td></tr>
+      <tr><td><code>audio_vocab_size</code></td><td class="n">4096</td><td>WavTokenizer codebook</td></tr>
+      <tr><td><code>char_vocab</code></td><td class="n">40</td><td>38 chars + pad + unk</td></tr>
+      <tr><td><code>frame_rate</code></td><td class="n">40 Hz</td><td>codec stride 600 at 24 kHz</td></tr>
+      <tr><td><code>text_encoder_dim</code></td><td class="n">512</td><td>WavTokenizer latent dim — happens to equal t5-small's d_model, so no projection is needed</td></tr>
+
+      <tr><td colspan="3" style="background:var(--surface-2);font-family:var(--mono);font-size:11px;letter-spacing:.06em">INHERITED FROM ELF — unchanged</td></tr>
+      <tr><td><code>denoiser_p_mean</code> / <code>_p_std</code></td><td class="n">−1.5 / 0.8</td><td>ELF de-en + owt. Mean t 0.21; P(t &gt; 0.9) = 0.0003 %</td></tr>
+      <tr><td><code>denoiser_noise_scale</code></td><td class="n">2.0</td><td>ELF de-en + owt</td></tr>
+      <tr><td><code>t_eps</code></td><td class="n">0.05</td><td>ELF</td></tr>
+      <tr><td><code>decoder_p_mean</code> / <code>_p_std</code></td><td class="n">0.8 / 0.8</td><td>ELF. Mean λ 0.69, drawn per token</td></tr>
+      <tr><td><code>decoder_noise_scale</code></td><td class="n">1.0</td><td>ELF de-en</td></tr>
+      <tr><td><code>self_cond_prob</code></td><td class="n">0.5</td><td>ELF</td></tr>
+      <tr><td><code>self_cond_cfg_min/max</code></td><td class="n">0.5 / 5.0</td><td>ELF, log-uniform</td></tr>
+      <tr><td><code>bottleneck_dim</code></td><td class="n">128</td><td>ELF</td></tr>
+      <tr><td><code>num_time_tokens</code> / <code>sc_cfg</code> / <code>mode</code></td><td class="n">4 / 4 / 4</td><td>ELF</td></tr>
+      <tr class="ours"><td><code>decoder_prob</code></td><td class="n">0.2</td><td>all 5 released ELF configs. See §06c.</td></tr>
+      <tr><td><code>label_drop_prob</code></td><td class="n">0.20</td><td>ZipVoice drops text at 20 %; ELF de-en uses 0.10</td></tr>
+
+      <tr><td colspan="3" style="background:var(--surface-2);font-family:var(--mono);font-size:11px;letter-spacing:.06em">OURS — chosen for this corpus</td></tr>
+      <tr class="ours"><td><code>global_batch_size</code></td><td class="n">32</td><td>241 steps/epoch. ELF's 512 would give 15 — catastrophic overfit on 24 h</td></tr>
+      <tr><td><code>prompt_frac</code></td><td class="n">U(0.0, 0.3)</td><td>ZipVoice masks 70–100 % of frames</td></tr>
+      <tr><td><code>steps</code></td><td class="n">100,000</td><td>≈ 248 epochs. Test 2 used 30 k and was undertrained</td></tr>
+      <tr><td><code>ema_decay</code></td><td class="n">0.9999</td><td>0.999 leaves 13.5 % of init at 2 k steps — see §08</td></tr>
+      <tr><td><code>warmup</code></td><td class="n">1,000</td><td>linear</td></tr>
+      <tr><td><code>sample_schedule</code></td><td class="n">logit_normal</td><td>ELF's own default; the uniform grid queries t the denoiser never saw</td></tr>
+
+      <tr><td colspan="3" style="background:var(--warn-bg);font-family:var(--mono);font-size:11px;letter-spacing:.06em">OPEN DEVIATIONS FROM ELF — close before any headline number</td></tr>
+      <tr><td><code>optimizer</code></td><td class="n bad">AdamW 3e-4</td><td>ELF uses Muon at <code>blr=0.001</code>. Changed to remove a failure mode from the first runs.</td></tr>
+      <tr><td><code>weight_decay</code></td><td class="n">0.0</td><td>matches ELF</td></tr>
+      <tr><td>β₁, β₂</td><td class="n">0.9, 0.95</td><td>matches ELF's adam_b1/b2</td></tr>
+      <tr><td>grad clip</td><td class="n">1.0</td><td>matches ELF</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="s7">
+  <h2><span class="num">07</span> Sampling</h2>
+
+  <pre>z     = ε·2.0 ;  <b>restore_cond → z[0:P] = clean prompt latents</b>
+x̂     = 0 outside the prompt
+ts    = get_sampling_steps(n, schedule, p_mean, p_std)
+
+for i in 0 … n−1:
+    v_c, x_c = model(cat[z, x̂, text],  t)        <i># SC-CFG is a prefix token: free</i>
+    v_u, _   = model(cat[z, x̂, <b>0</b>],     t)        <i># only when CFG ≠ 1</i>
+    v   = v_u + w_cfg·(v_c − v_u)
+    z   = z + (t[i+1] − t[i])·v
+    z   = <b>restore_cond(z, prompt)</b>                 <i># the prompt never drifts</i>
+    x̂   = x_c                                    <i># self-conditioning carries forward</i>
+
+codes = model(cat[z, 0, text], t=1, decoder_active=True).argmax(−1)
+wav   = WavTokenizerDecoder(codes)</pre>
+
+  <p>NFE = <code>n × (2 if CFG ≠ 1 else 1) + 1</code>. The <code>+1</code> is the decode forward.</p>
+
+  <div class="note"><strong>The schedule matters more than it looks.</strong> Training draws
+  <var>t</var> ~ sigmoid(𝒩(−1.5, 0.8)), so a uniform 32-step grid queries <var>t</var> = 0.97, 0.94, 0.91 — values
+  the denoiser essentially never saw. ELF's own <code>logit_normal</code> schedule draws the grid from the training
+  distribution instead, and its largest queried <var>t</var> is 0.675, with a single final jump to 1 handled by the
+  decoder branch, which <em>is</em> trained at <var>t</var> = 1. Measured effect in §08c.</div>
+</section>
+
+<section id="s8">
+  <h2><span class="num">08</span> The diagnosis chain</h2>
+
+  <p>Four probes on the Test 2 checkpoint, ELF-XS 14.56 M at 30 k steps, EMA weights, 500 held-out clips.</p>
+
+  <h3>08a — the discretization head works, and wins by a lot</h3>
+  <p>Measured on the distribution the CE head is actually trained on, <code>λ·x₀+(1−λ)ε</code> with λ ~
+  sigmoid(𝒩(0.8,0.8)), mean 0.69:</p>
+  <div class="tscroll"><table>
+    <thead><tr><th>λ</th><th>‖z−x₀‖</th><th>nearest codebook</th><th>CE head</th><th>CE − NN</th></tr></thead>
+    <tbody>
+      <tr><td class="n">0.50</td><td class="n">15.77</td><td class="n">0.50 %</td><td class="n">42.07 %</td><td class="n good">+41.6</td></tr>
+      <tr class="ours"><td class="n">0.69 ← training mean</td><td class="n">9.78</td><td class="n">3.46 %</td><td class="n">66.96 %</td><td class="n good">+63.5</td></tr>
+      <tr><td class="n">0.80</td><td class="n">6.31</td><td class="n">14.59 %</td><td class="n">78.12 %</td><td class="n good">+63.5</td></tr>
+      <tr><td class="n">0.90</td><td class="n">3.15</td><td class="n">46.21 %</td><td class="n">83.88 %</td><td class="n good">+37.7</td></tr>
+      <tr class="gt"><td>1.00 — clean</td><td>0.00</td><td>100.00 %</td><td>68.42 %</td><td class="bad">−31.6</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note win"><strong>ELF's late discretization earns its place on audio: +63 points over
+  nearest-codebook at its working noise level.</strong> An earlier σ-sweep from <em>clean</em> latents said the
+  opposite, and that was my measurement error — σ = 0 is the single point the head is never trained on, because the
+  sampler never delivers a clean latent either. The λ sweep is the right yardstick.</div>
+  <p class="note">A linear unembedding can reproduce nearest-codebook exactly, since
+  <code>argmin_k‖z−c_k‖² = argmax_k(c_k·z − ‖c_k‖²/2)</code>. Verified at <b>100.000 %</b> agreement on 20,000 real
+  frames. So the head is not architecturally limited in either direction — it has chosen robustness over exactness,
+  which is what it was trained to do.</p>
+
+  <h3>08b — the denoiser works on-manifold, and the rollout leaves the manifold</h3>
+  <div class="tscroll"><table>
+    <thead><tr><th>t</th><th>teacher-forced ‖x̂₀−x₀‖</th><th>true ‖z_t−x₀‖</th><th>rollout ‖x̂₀−x₀‖</th><th>gap</th></tr></thead>
+    <tbody>
+      <tr><td class="n">0.20</td><td class="n">8.42</td><td class="n">40.35</td><td class="n">24.03</td><td class="n">2.9×</td></tr>
+      <tr><td class="n">0.50</td><td class="n">3.37</td><td class="n">25.23</td><td class="n">24.98</td><td class="n">7.4×</td></tr>
+      <tr class="ours"><td class="n">0.70</td><td class="n good">2.15</td><td class="n">15.13</td><td class="n bad">25.01</td><td class="n bad">11.6×</td></tr>
+      <tr class="gt"><td>‖x₀‖ for scale</td><td>21.38</td><td>—</td><td>—</td><td>—</td></tr>
+    </tbody>
+  </table></div>
+  <p>Given a <em>true</em> <code>z_t</code> at t = 0.7 the model predicts x₀ to 2.15, a 10 % relative error — the
+  velocity field is learned. Fed its own rollout state at the same t it produces 25.0, which is no better than
+  predicting zero. The rollout tracks the true manifold to about t = 0.3 and then stalls at ‖z−x₀‖ ≈ 25, while the CE
+  head needs ≈ 10 to reach 67 %.</p>
+
+  <h3>08c — matching the sampling schedule to training helps, but does not fix it</h3>
+  <div class="tscroll"><table>
+    <thead><tr><th>Schedule</th><th>max t queried</th><th>‖z−x₀‖ @ 16 / 32 / 64 steps</th><th>code acc</th></tr></thead>
+    <tbody>
+      <tr><td>uniform</td><td class="n">0.969</td><td class="n">26.43 / 27.34 / 27.89</td><td class="n bad">0.16 – 0.39 %</td></tr>
+      <tr class="ours"><td>logit_normal — ELF's default</td><td class="n">0.675</td><td class="n">25.21 / 25.55 / 25.77</td><td class="n bad">0.26 – 0.48 %</td></tr>
+      <tr class="gt"><td>chance</td><td>—</td><td>—</td><td>0.024 %</td></tr>
+    </tbody>
+  </table></div>
+  <p>A ~7 % improvement in terminal error and a doubling of a still-negligible code accuracy. Worth keeping — it is
+  ELF's own default and strictly more correct — but it was not the root cause. One detail it exposes: with
+  <code>logit_normal</code>, <code>‖z−x₀‖</code> and <code>‖x̂₀−x₀‖</code> come out <em>identical</em>, because the
+  final Euler step from t = 0.675 to 1 lands exactly on x̂₀. The terminal error simply <em>is</em> the model's x̂₀
+  prediction error.</p>
+
+  <h3>08d — text is used, and used in the right places</h3>
+  <div class="tscroll"><table>
+    <thead><tr><th>t</th><th>‖x̂₀‖</th><th>text vs zeroed</th><th>text vs shuffled</th></tr></thead>
+    <tbody>
+      <tr class="ours"><td class="n">0.05</td><td class="n">11.76</td><td class="n good">34.8 %</td><td class="n good">39.8 %</td></tr>
+      <tr><td class="n">0.10</td><td class="n">15.80</td><td class="n">18.1 %</td><td class="n">21.8 %</td></tr>
+      <tr><td class="n">0.20</td><td class="n">19.33</td><td class="n">6.4 %</td><td class="n">7.8 %</td></tr>
+      <tr><td class="n">0.50</td><td class="n">20.96</td><td class="n">0.75 %</td><td class="n">0.88 %</td></tr>
+      <tr><td class="n">0.70</td><td class="n">21.08</td><td class="n">0.37 %</td><td class="n">0.46 %</td></tr>
+    </tbody>
+  </table></div>
+  <p>Text changes x̂₀ by 35 % at t = 0.05 and by 0.4 % at t = 0.7, and shuffling the characters hurts slightly
+  <em>more</em> than removing them — so content matters, not merely presence. This is the correct shape: at high t
+  the noised latent already carries the answer, at low t text is the only information there is. <strong>The text
+  channel is wired correctly and is being used.</strong> It also explains why CFG barely moved the rollout — the
+  schedule only queries t ≥ 0.675, where text legitimately does not matter.</p>
+
+  <h3>08e — what the chain adds up to</h3>
+  <p>Note <code>‖x̂₀‖ = 11.76</code> at t = 0.05 against <code>‖x₀‖ = 21.38</code>. At low t the model emits a
+  <strong>shrunken, blurred prediction — the conditional mean</strong> — because it cannot yet resolve which
+  utterance those characters specify. That is the signature of an under-resolved conditional model, not a wiring bug.
+  And low t is exactly where the rollout must do its work.</p>
+
+  <div class="tscroll"><table>
+    <thead><tr><th>Component</th><th>Verdict</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr><td>Latent space / <code>latent_std</code></td><td class="good">correct</td><td>0.26383 full-set, confirms the 1000-clip probe to 3 dp</td></tr>
+      <tr><td>Text channel + upsampling</td><td class="good">correct</td><td>§08d — 35 % sensitivity at low t, shuffling hurts more</td></tr>
+      <tr><td>Late discretization (CE head)</td><td class="good">works, +63 pts</td><td>§08a</td></tr>
+      <tr><td>Denoiser on-manifold</td><td class="good">works</td><td>§08b — 10 % relative error at t = 0.7</td></tr>
+      <tr><td>Sampling schedule</td><td class="mid">was wrong, now fixed</td><td>§08c — 7 % gain, not the cause</td></tr>
+      <tr class="ours"><td><b>Conditional resolution at low t</b></td><td class="bad">the bottleneck</td><td>§08e — ‖x̂₀‖ 11.76 vs ‖x₀‖ 21.38</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="note flag"><strong>This points back at scale, which is what the baselines predicted.</strong> 30 k
+  steps × 32 = 74 epochs over 12,910 clips, on 3.37 M audio tokens — 1 : 14,412 against ELF's own 50 B-token
+  pretraining. F5-TTS needed 500 k updates on 555 h and ZipVoice 60 k on the same; LJSpeech is 24 h. The pipeline is
+  correct and the two ELF-specific mechanisms both work; what is missing is enough data and training for the
+  generative half to resolve a specific utterance from characters.</div>
+</section>
+
+<section id="s9">
+  <h2><span class="num">09</span> Status</h2>
+  <div class="tscroll"><table>
+    <thead><tr><th>Step</th><th>What it settles</th><th>Cost</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>Test 0 — codec probe</td><td>Is the codec latent a workable flow target?</td><td class="n">58 s</td><td class="good">PASS</td></tr>
+      <tr><td>Preprocess</td><td>12,910 clips → 3.37 M frames</td><td class="n">6 m 46 s</td><td class="good">done</td></tr>
+      <tr><td>Test 1b — overfit 100</td><td>Plumbing: masks, CE targets, both branches</td><td class="n">147 s</td><td class="good">PASS</td></tr>
+      <tr><td>Test 2 — full LJSpeech</td><td>Held-out generation</td><td class="n">42 min</td><td class="bad">sampling at chance</td></tr>
+      <tr><td>Diagnosis §08a–e</td><td>Which component is the bottleneck</td><td class="n">~4 min</td><td class="good">located: low-t conditional resolution</td></tr>
+      <tr class="gt"><td>Next — scale up</td><td>LibriTTS 555 h, ELF-B⁺ 118.6 M, matched budget</td><td>~8 GPU-h</td><td>not started</td></tr>
+      <tr class="gt"><td>Also open</td><td>Muon vs AdamW · <code>decoder_prob</code> 0.5 · cross-clip prompt collator · ceiling WER/UTMOS</td><td>—</td><td>not started</td></tr>
+    </tbody>
+  </table></div>
+
+  <p class="note">Working record for the voiceflow experiments. Every figure was produced by the scripts in this
+  directory — <code>probe_test0.py</code>, <code>preprocess.py</code>, <code>train.py</code>,
+  <code>diagnose.py</code>, <code>sched_test.py</code>, <code>text_sens.py</code> — with logs in <code>logs/</code>
+  and JSON in <code>out/</code>. Parameter counts come from instantiating the modules.</p>
+</section>
+
+</div>
+</body>
+</html>

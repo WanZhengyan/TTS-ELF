@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LJSpeech Probe</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  *{box-sizing:border-box}
+  :root{
+    color-scheme: light;
+    --ground:#f6f7f9; --surface:#ffffff; --surface-2:#eceff4; --surface-3:#e2e6ed;
+    --ink:#171b22; --ink-2:#4a5260; --ink-3:#79818f;
+    --rule:#d7dbe3; --rule-2:#b7bfcb;
+    --clean:#0d7d72; --clean-bg:#e2f2f0;
+    --noise:#a85d08; --noise-bg:#f8eddd;
+    --txt:#3b5490;  --txt-bg:#e5eaf6;
+    --warn:#a0262b; --warn-bg:#f8e7e7;
+    --sans:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+    --serif:"IBM Plex Serif",Georgia,serif;
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --ground:#0e1116; --surface:#161b22; --surface-2:#1d232b; --surface-3:#262d37;
+      --ink:#e7eaef; --ink-2:#a9b1be; --ink-3:#7d8591;
+      --rule:#2a313b; --rule-2:#3c4550;
+      --clean:#45bdad; --clean-bg:#0f2c2a;
+      --noise:#e39c4c; --noise-bg:#33240f;
+      --txt:#8099d8;  --txt-bg:#1a2340;
+      --warn:#e4807f; --warn-bg:#331a1b;
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --ground:#0e1116; --surface:#161b22; --surface-2:#1d232b; --surface-3:#262d37;
+    --ink:#e7eaef; --ink-2:#a9b1be; --ink-3:#7d8591;
+    --rule:#2a313b; --rule-2:#3c4550;
+    --clean:#45bdad; --clean-bg:#0f2c2a;
+    --noise:#e39c4c; --noise-bg:#33240f;
+    --txt:#8099d8;  --txt-bg:#1a2340;
+    --warn:#e4807f; --warn-bg:#331a1b;
+  }
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--ground); color:var(--ink);
+    font-family:var(--sans); font-size:15px; line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  img{max-width:100%}
+  .wrap{max-width:960px;margin:0 auto;padding-left:18px;padding-right:18px;padding-block:0 72px}
+
+  header.mast{padding-block:40px 24px;border-bottom:2px solid var(--ink)}
+  .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin:0 0 14px}
+  h1{font-size:clamp(28px,5.4vw,42px);line-height:1.1;letter-spacing:-.02em;font-weight:600;margin:0 0 14px;text-wrap:balance}
+  .lede{font-family:var(--serif);font-size:17px;line-height:1.6;color:var(--ink-2);max-width:62ch;margin:0}
+
+  .spec{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin:28px 0 0}
+  .spec div{background:var(--surface);padding:11px 13px}
+  .spec dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin:0 0 3px}
+  .spec dd{margin:0;font-family:var(--mono);font-size:14px;font-weight:500;font-variant-numeric:tabular-nums}
+
+  section{padding-block:40px 0}
+  h2{font-size:21px;font-weight:600;letter-spacing:-.01em;margin:0 0 6px;padding-bottom:8px;border-bottom:1px solid var(--rule-2);display:flex;align-items:baseline;gap:11px;flex-wrap:wrap}
+  h2 .num{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--clean);letter-spacing:0}
+  h3{font-size:15.5px;font-weight:600;margin:30px 0 8px}
+  p{margin:0 0 14px;max-width:68ch}
+  ul,ol{margin:0 0 14px;padding-left:22px;max-width:68ch}
+  li{margin-bottom:6px}
+  code{font-family:var(--mono);font-size:.875em;background:var(--surface-2);padding:.1em .34em;border-radius:2px;word-break:break-word}
+  strong{font-weight:600}
+  .note{font-size:13.5px;color:var(--ink-2);border-left:2px solid var(--rule-2);padding:2px 0 2px 14px;margin:0 0 14px;max-width:66ch}
+  .flag{border-left-color:var(--warn);background:var(--warn-bg);padding:11px 14px;border-radius:0 3px 3px 0;color:var(--ink)}
+  .win{border-left-color:var(--clean);background:var(--clean-bg);padding:11px 14px;border-radius:0 3px 3px 0;color:var(--ink)}
+
+  figure{margin:20px 0 26px;background:var(--surface);border:1px solid var(--rule)}
+  .scroll{overflow-x:auto;padding:16px 16px 4px}
+  figure svg{display:block;max-width:100%;height:auto;min-width:620px}
+  figcaption{font-size:12.5px;line-height:1.5;color:var(--ink-2);padding:12px 16px 14px;border-top:1px solid var(--rule);background:var(--surface-2)}
+  figcaption b{color:var(--ink);font-weight:600}
+
+  .tscroll{overflow-x:auto;margin:0 0 20px;border:1px solid var(--rule);background:var(--surface)}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:540px}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+  thead th{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);background:var(--surface-2);font-weight:600;white-space:nowrap}
+  tbody tr:last-child td{border-bottom:none}
+  td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+  tr.ours{background:var(--clean-bg)}
+  tr.ours td{font-weight:600}
+  tr.gt td{color:var(--ink-3);font-style:italic}
+  .bad{color:var(--warn);font-weight:600}
+  .good{color:var(--clean);font-weight:600}
+  .mid{color:var(--noise);font-weight:600}
+
+  pre{margin:0 0 20px;background:var(--surface);border:1px solid var(--rule);padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.65;tab-size:2}
+  pre b{color:var(--clean);font-weight:600}
+  pre i{color:var(--ink-3);font-style:normal}
+  pre u{color:var(--warn);text-decoration:none;font-weight:600}
+
+  .can{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:0 0 20px}
+  @media (max-width:620px){.can{grid-template-columns:1fr}}
+  .can > div{border:1px solid var(--rule);background:var(--surface);padding:14px 16px}
+  .can h4{margin:0 0 10px;font-size:13px;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase}
+  .can.y h4,.can div.y h4{color:var(--clean)}
+  .can div.n h4{color:var(--warn)}
+  .can ul{margin:0;padding-left:19px;font-size:13.5px}
+  .can li{margin-bottom:7px;color:var(--ink-2)}
+  .can li b{color:var(--ink);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">voiceflow · pre-LibriTTS validation</p>
+  <h1>LJSpeech Probe</h1>
+  <p class="lede">A one-day ladder that answers "does flow matching in codec latent space work at all" before
+  committing to the parameter-matched LibriTTS run — and that starts with a test needing no training whatsoever.</p>
+
+  <dl class="spec">
+    <div><dt>Corpus</dt><dd>24 h · 1 spk</dd></div>
+    <div><dt>Clips</dt><dd>13,100</dd></div>
+    <div><dt>Audio tokens</dt><dd>3.46 M</dd></div>
+    <div><dt>Probe model</dt><dd>ELF-XS 14.3 M</dd></div>
+    <div><dt>max_length</dt><dd>448 fr</dd></div>
+    <div><dt>Total budget</dt><dd>~1 day, 1 GPU</dd></div>
+  </dl>
+</header>
+
+<section>
+  <h2><span class="num">00</span> What LJSpeech can and cannot settle</h2>
+
+  <p>Yes — but be precise about which risk it retires. The full proposal carries four independent risks, and
+  LJSpeech reaches exactly two of them. Conflating the LJSpeech model with the paper model is the easiest way to
+  waste the week that follows.</p>
+
+  <div class="can">
+    <div class="y">
+      <h4>✓ LJSpeech settles this</h4>
+      <ul>
+        <li><b>Is the codec latent a workable flow target?</b> Whether continuous CFM plus late discretization recovers correct codes at all.</li>
+        <li><b>Is <code>latent_std</code> right?</b> The scale constant that breaks training silently when wrong.</li>
+        <li><b>Does average upsampling align?</b> Single speaker makes this the easiest possible version of the alignment problem — if it fails here it fails everywhere.</li>
+        <li><b>Is the plumbing correct?</b> Mask polarity, CE target indexing, <code>restore_cond</code> wiring.</li>
+      </ul>
+    </div>
+    <div class="n">
+      <h4>✗ LJSpeech cannot touch this</h4>
+      <ul>
+        <li><b>Zero-shot voice cloning.</b> One speaker means SIM-o is meaningless — there is no unseen voice to clone.</li>
+        <li><b>The comparison table.</b> No standard split exists for LJSpeech; the published row needs LibriTTS.</li>
+        <li><b>Model capacity at scale.</b> 3.46 M audio tokens cannot support 118.6 M parameters, so the LJSpeech run says nothing about the matched model.</li>
+        <li><b>Prosody diversity.</b> A single reader's narration range is far narrower than LibriTTS.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note flag"><strong>Use ELF-XS (14.3 M), not ELF-B⁺ (118.6 M), on LJSpeech.</strong> 3.46 M audio
+  tokens is 1 : 14,412 against ELF's own 50 B-token pretraining. The matched 118.6 M model will memorise the corpus
+  and tell you nothing. The LJSpeech model is a diagnostic instrument, not a scaled-down version of the result.</div>
+</section>
+
+<section>
+  <h2><span class="num">01</span> Test 0 — the probe that needs no training</h2>
+
+  <p>Run this first, today, before writing a line of model code. ELF's entire premise is that you can travel through
+  continuous space and discretize only at <code>t = 1</code>. For audio that premise has a measurable precondition:
+  <strong>the codebook cells must be large relative to the error your flow model will actually land with.</strong>
+  If they are not, no amount of training fixes it.</p>
+
+  <figure>
+  <div class="scroll">
+  <svg viewBox="0 0 880 420" role="img" aria-label="A real codec latent is perturbed by Gaussian noise of increasing sigma, then decoded two ways: by nearest-codebook quantization, which gives a lower bound on robustness, and by ELF's learned cross-entropy head, which is trained on noised latents and should be strictly more robust. The gap between the two curves is the measurable contribution of ELF's design.">
+    <defs>
+      <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+      </marker>
+    </defs>
+    <g font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor">
+
+      <rect x="0" y="14" width="200" height="56" fill="var(--clean-bg)" stroke="var(--clean)" stroke-width="1.5"/>
+      <text x="100" y="36" text-anchor="middle" font-size="11" font-weight="600" fill="var(--clean)">real LJSpeech latent</text>
+      <text x="100" y="52" text-anchor="middle" font-size="10" fill="var(--clean)">z₀ ∈ ℝ⁵¹²  (pre-quantization)</text>
+      <text x="100" y="65" text-anchor="middle" font-size="10" fill="var(--clean)">WavTokenizer encoder, frozen</text>
+
+      <line x1="200" y1="42" x2="248" y2="42" stroke="currentColor" stroke-width="1.5" marker-end="url(#a)"/>
+      <text x="224" y="32" text-anchor="middle" font-size="9.5" fill="var(--ink-3)">+ σ·𝒩</text>
+
+      <rect x="248" y="14" width="190" height="56" fill="var(--noise-bg)" stroke="var(--noise)" stroke-width="1.5"/>
+      <text x="343" y="36" text-anchor="middle" font-size="11" font-weight="600" fill="var(--noise)">perturbed latent</text>
+      <text x="343" y="52" text-anchor="middle" font-size="10" fill="var(--noise)">z = z₀ + σ·ε</text>
+      <text x="343" y="65" text-anchor="middle" font-size="10" fill="var(--noise)">σ sweeps 0 → 1 × latent_std</text>
+
+      <!-- two decode paths -->
+      <path d="M438,30 L486,30" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#a)"/>
+      <path d="M438,54 L486,54" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#a)"/>
+
+      <rect x="486" y="8" width="230" height="40" fill="var(--surface-2)" stroke="var(--rule-2)" stroke-width="1.5"/>
+      <text x="496" y="24" font-size="10.5" font-weight="600">path A — nearest codebook</text>
+      <text x="496" y="39" font-size="10" fill="var(--ink-2)">argmin‖z − cₖ‖, k ∈ 4096</text>
+      <text x="726" y="31" font-size="9.5" fill="var(--ink-3)">lower bound</text>
+
+      <rect x="486" y="56" width="230" height="40" fill="var(--txt-bg)" stroke="var(--txt)" stroke-width="1.5"/>
+      <text x="496" y="72" font-size="10.5" font-weight="600" fill="var(--txt)">path B — ELF's CE head</text>
+      <text x="496" y="87" font-size="10" fill="var(--txt)">argmax unembed(z), trained on noise</text>
+      <text x="726" y="79" font-size="9.5" fill="var(--txt)">what ELF does</text>
+
+      <line x1="601" y1="96" x2="601" y2="120" stroke="currentColor" stroke-width="1.5" marker-end="url(#a)"/>
+      <text x="612" y="112" font-size="10" fill="var(--ink-2)">code flip rate, then decoder → wav → WER / UTMOS</text>
+
+      <!-- the curve sketch -->
+      <line x1="60" y1="150" x2="60" y2="360" stroke="var(--rule-2)"/>
+      <line x1="60" y1="360" x2="700" y2="360" stroke="var(--rule-2)"/>
+      <text x="48" y="156" text-anchor="end" font-size="10" fill="var(--ink-3)">100%</text>
+      <text x="48" y="260" text-anchor="end" font-size="10" fill="var(--ink-3)">50%</text>
+      <text x="48" y="364" text-anchor="end" font-size="10" fill="var(--ink-3)">0%</text>
+      <text x="14" y="258" font-size="10" fill="var(--ink-3)" transform="rotate(-90 14 258)">codes surviving</text>
+      <text x="380" y="382" text-anchor="middle" font-size="10" fill="var(--ink-3)">perturbation σ, in units of latent_std  ──▶</text>
+      <text x="60" y="382" text-anchor="middle" font-size="10" fill="var(--ink-3)">0</text>
+      <text x="700" y="382" text-anchor="middle" font-size="10" fill="var(--ink-3)">1.0</text>
+
+      <line x1="60" y1="170" x2="700" y2="170" stroke="var(--rule)" stroke-dasharray="3 3"/>
+      <text x="706" y="174" font-size="9.5" fill="var(--ink-3)">95%</text>
+
+      <polyline points="60,152 120,156 180,172 240,206 300,250 360,288 420,314 480,332 540,344 600,352 660,356 700,358"
+        fill="none" stroke="currentColor" stroke-width="2"/>
+      <text x="300" y="242" font-size="10" fill="var(--ink-2)">path A</text>
+
+      <polyline points="60,152 140,153 220,156 300,164 380,182 440,210 500,248 560,288 620,320 680,344 700,350"
+        fill="none" stroke="var(--txt)" stroke-width="2.5"/>
+      <text x="470" y="200" font-size="10.5" font-weight="600" fill="var(--txt)">path B</text>
+
+      <line x1="180" y1="170" x2="180" y2="360" stroke="currentColor" stroke-width="1" stroke-dasharray="4 3"/>
+      <text x="186" y="352" font-size="9.5" fill="var(--ink-3)">σ_A</text>
+      <line x1="326" y1="170" x2="326" y2="360" stroke="var(--txt)" stroke-width="1" stroke-dasharray="4 3"/>
+      <text x="332" y="352" font-size="9.5" fill="var(--txt)">σ_B</text>
+
+      <path d="M186,186 L320,186" fill="none" stroke="var(--clean)" stroke-width="2.5"/>
+      <path d="M320,186 L312,182 L312,190 z" fill="var(--clean)"/>
+      <path d="M186,186 L194,182 L194,190 z" fill="var(--clean)"/>
+      <text x="253" y="178" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--clean)">this gap is ELF's contribution</text>
+
+      <text x="730" y="206" font-size="10" fill="var(--ink-2)">Read off σ at the</text>
+      <text x="730" y="220" font-size="10" fill="var(--ink-2)">95 % line for each</text>
+      <text x="730" y="234" font-size="10" fill="var(--ink-2)">path. σ_B is the</text>
+      <text x="730" y="248" font-size="10" fill="var(--ink-2)">error budget your</text>
+      <text x="730" y="262" font-size="10" fill="var(--ink-2)">flow model must</text>
+      <text x="730" y="276" font-size="10" fill="var(--ink-2)">beat at t = 1.</text>
+    </g>
+  </svg>
+  </div>
+  <figcaption><b>Two decode paths, and the gap between them is the thing worth publishing.</b> Nearest-codebook
+  quantization is a fixed lower bound you can measure today. ELF's CE head is trained on exactly this kind of
+  noised latent — the <code>decoder_prob</code> branch feeds it <code>λ·x₀ + (1−λ)·ε</code> — so it should be
+  strictly more robust. If path B is no better than path A, ELF's shared-weight discretizer earns nothing on audio
+  and the honest paper is a different one. Curve shapes shown are illustrative; the measurement is the point.</figcaption>
+  </figure>
+
+  <h3>Three things to measure, all CPU-cheap</h3>
+  <ol>
+    <li><strong>Codebook margin.</strong> For each real latent, <code>d₁ = ‖z − c_nn1‖</code> and
+    <code>d₂ = ‖z − c_nn2‖</code>. Histogram <code>(d₂ − d₁)/d₁</code>. The fraction below 0.1 is the fraction of
+    frames that are already nearly ambiguous before any noise — if that fraction is large, the codebook is clustered
+    and late discretization is fighting the geometry.</li>
+    <li><strong>Noise tolerance.</strong> The two curves above. Report σ at 95 % code survival for both paths, and
+    the WER/UTMOS of the decoded waveform at each σ.</li>
+    <li><strong><code>latent_std</code> and the ceiling.</strong> Mean and std of the latents, plus the plain
+    encode→decode resynthesis WER/UTMOS on your LJSpeech test split. The second is the ceiling every later number
+    is measured against.</li>
+  </ol>
+
+  <h3>Result — job 14615, 1000 clips / 259,158 frames, 58 s on one H100</h3>
+
+  <div class="tscroll"><table>
+    <thead><tr><th>Quantity</th><th>Measured</th><th>Reading</th></tr></thead>
+    <tbody>
+      <tr class="ours"><td><code>latent_std</code></td><td class="n">0.26409</td><td>ELF's default 0.2 is 1.32× off — the config change is real but modest</td></tr>
+      <tr class="ours"><td><code>max_length</code></td><td class="n">400</td><td>p99 frames/clip; mean 259 (6.5 s), p95 387</td></tr>
+      <tr><td>codebook usage</td><td class="n">4058 / 4096</td><td>99.1 % — a single speaker exercises nearly the whole 80 kh codebook</td></tr>
+      <tr><td>‖z − c‖, the cell radius</td><td class="n">0.7187</td><td>what the codec's own quantizer already discards</td></tr>
+      <tr><td>rel. quantization error</td><td class="n">13.8 %</td><td>of ‖z‖, mean; p95 24.3 %</td></tr>
+      <tr><td>margin &lt; 0.05 / 0.10 / 0.25</td><td class="n">12.8 / 23.5 / 46.7 %</td><td>a fragile minority, not a fragile corpus</td></tr>
+      <tr><td>margin spread p95 / p5</td><td class="n">90×</td><td>heavily tailed — most frames sit deep inside their cell</td></tr>
+      <tr class="ours"><td><b>σ_A @ 95 % survival</b></td><td class="n">0.0874 × σ<sub>lat</sub></td><td><b>= 0.727 × the cell radius</b> — the error budget</td></tr>
+      <tr><td>σ_A @ 99 % survival</td><td class="n">0.0170 × σ<sub>lat</sub></td><td>0.141 × the cell radius</td></tr>
+      <tr><td>survival at σ = 1.0 × σ<sub>lat</sub></td><td class="n">51.5 %</td><td>at 8.3× the cell radius — no cliff</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="note win"><strong>Gate: passed.</strong> Stated in units of <code>latent_std</code> the budget looks
+  tight at 8.7 %, but that is a unit artifact — a 512-d Gaussian's norm is √512 times its per-dimension σ. In the
+  geometry that matters, <strong>the flow model may miss x₀ by 0.73× the distance the codec's own quantizer already
+  moves the latent, and still land on the correct code 95 % of the time.</strong> That is a workable bar, and it is
+  the right comparison because the codec's rounding error is the irreducible floor either way.</div>
+
+  <p>The margin distribution is the more interesting finding. A 90× spread between p5 and p95, with 51.5 % of codes
+  surviving a perturbation 8.3× the cell radius, says errors will not be spread evenly — they concentrate in the
+  ~13 % of frames sitting near a decision boundary. That sharpens the prediction for path B: nearest-neighbour
+  rounding treats every frame alike, whereas a trained classifier can learn which codebook neighbours are
+  confusable and lean on context to separate them. <strong>The fragile 13 % is exactly where ELF's CE head should
+  win, and the size of that win is the measurement worth publishing.</strong></p>
+
+  <p class="note">Path B needs a trained CE head, so measure path A and the margins now, and fill in path B right
+  after Test 2. The comparison is the deliverable; the order is just scheduling.</p>
+</section>
+
+<section>
+  <h2><span class="num">02</span> The ladder, with gates</h2>
+
+  <figure>
+  <div class="scroll">
+  <svg viewBox="0 0 880 352" role="img" aria-label="Four tests in sequence with decision gates: a no-training codec probe, an overfit smoke test on 100 clips, a full text-conditioned LJSpeech run, and a prompt-infilling check — each gate naming the specific failure it catches and where to go when it fails.">
+    <defs>
+      <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+      </marker>
+    </defs>
+    <g font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor">
+
+      <!-- lane labels -->
+      <text x="0" y="14" font-size="10" fill="var(--ink-3)">test</text>
+      <text x="0" y="128" font-size="10" fill="var(--ink-3)">gate</text>
+      <text x="0" y="246" font-size="10" fill="var(--ink-3)">on failure</text>
+
+      <!-- T0 -->
+      <rect x="44" y="24" width="186" height="70" fill="var(--clean-bg)" stroke="var(--clean)" stroke-width="2"/>
+      <text x="54" y="42" font-size="11" font-weight="600" fill="var(--clean)">Test 0 · codec probe</text>
+      <text x="54" y="58" font-size="10" fill="var(--clean)">no training · ~1 h · CPU</text>
+      <text x="54" y="73" font-size="10" fill="var(--clean)">margins, σ curve,</text>
+      <text x="54" y="86" font-size="10" fill="var(--clean)">latent_std, ceiling</text>
+
+      <line x1="230" y1="59" x2="258" y2="59" stroke="currentColor" stroke-width="2" marker-end="url(#b)"/>
+
+      <!-- T1 -->
+      <rect x="258" y="24" width="186" height="70" fill="var(--surface-3)" stroke="currentColor" stroke-width="2"/>
+      <text x="268" y="42" font-size="11" font-weight="600">Test 1 · overfit 100</text>
+      <text x="268" y="58" font-size="10" fill="var(--ink-2)">~30 min · 1 GPU</text>
+      <text x="268" y="73" font-size="10" fill="var(--ink-2)">ELF-T 6.4 M, no text,</text>
+      <text x="268" y="86" font-size="10" fill="var(--ink-2)">100 clips, drive loss → 0</text>
+
+      <line x1="444" y1="59" x2="472" y2="59" stroke="currentColor" stroke-width="2" marker-end="url(#b)"/>
+
+      <!-- T2 -->
+      <rect x="472" y="24" width="186" height="70" fill="var(--noise-bg)" stroke="var(--noise)" stroke-width="2"/>
+      <text x="482" y="42" font-size="11" font-weight="600" fill="var(--noise)">Test 2 · full LJSpeech</text>
+      <text x="482" y="58" font-size="10" fill="var(--noise)">~4 h · 1 GPU</text>
+      <text x="482" y="73" font-size="10" fill="var(--noise)">ELF-XS 14.3 M, text-cond,</text>
+      <text x="482" y="86" font-size="10" fill="var(--noise)">avg upsampling, 100k steps</text>
+
+      <line x1="658" y1="59" x2="686" y2="59" stroke="currentColor" stroke-width="2" marker-end="url(#b)"/>
+
+      <!-- T3 -->
+      <rect x="686" y="24" width="186" height="70" fill="var(--txt-bg)" stroke="var(--txt)" stroke-width="2"/>
+      <text x="696" y="42" font-size="11" font-weight="600" fill="var(--txt)">Test 3 · infilling</text>
+      <text x="696" y="58" font-size="10" fill="var(--txt)">~1 h · reuses Test 2 ckpt</text>
+      <text x="696" y="73" font-size="10" fill="var(--txt)">prompt [0,P) → continue;</text>
+      <text x="696" y="86" font-size="10" fill="var(--txt)">same speaker, mechanism only</text>
+
+      <!-- gates -->
+      <line x1="137" y1="94" x2="137" y2="112" stroke="currentColor" stroke-width="1.5" marker-end="url(#b)"/>
+      <line x1="351" y1="94" x2="351" y2="112" stroke="currentColor" stroke-width="1.5" marker-end="url(#b)"/>
+      <line x1="565" y1="94" x2="565" y2="112" stroke="currentColor" stroke-width="1.5" marker-end="url(#b)"/>
+      <line x1="779" y1="94" x2="779" y2="112" stroke="currentColor" stroke-width="1.5" marker-end="url(#b)"/>
+
+      <rect x="44" y="112" width="186" height="64" fill="var(--surface)" stroke="var(--rule-2)" stroke-width="1.5"/>
+      <text x="54" y="130" font-size="10">σ_B at 95 % ≥ a few %</text>
+      <text x="54" y="145" font-size="10">of latent_std, and</text>
+      <text x="54" y="160" font-size="10">margin-ambiguous frames</text>
+      <text x="54" y="172" font-size="10">are a small minority</text>
+
+      <rect x="258" y="112" width="186" height="64" fill="var(--surface)" stroke="var(--rule-2)" stroke-width="1.5"/>
+      <text x="268" y="130" font-size="10">CE accuracy &gt; 99 % on</text>
+      <text x="268" y="145" font-size="10">the 100 memorised clips,</text>
+      <text x="268" y="160" font-size="10">resynthesis audibly</text>
+      <text x="268" y="172" font-size="10">matches the originals</text>
+
+      <rect x="472" y="112" width="186" height="64" fill="var(--surface)" stroke="var(--rule-2)" stroke-width="1.5"/>
+      <text x="482" y="130" font-size="10">WER &lt; 5 on the 500-clip</text>
+      <text x="482" y="145" font-size="10">held-out split, under</text>
+      <text x="482" y="160" font-size="10">Whisper-large-v3</text>
+      <text x="482" y="172" font-size="10">(Matcha-TTS gets 2.09)</text>
+
+      <rect x="686" y="112" width="186" height="64" fill="var(--surface)" stroke="var(--rule-2)" stroke-width="1.5"/>
+      <text x="696" y="130" font-size="10">no audible seam at the</text>
+      <text x="696" y="145" font-size="10">prompt boundary; pitch</text>
+      <text x="696" y="160" font-size="10">and pace continue</text>
+      <text x="696" y="172" font-size="10">across frame P</text>
+
+      <!-- failure routes -->
+      <line x1="137" y1="176" x2="137" y2="196" stroke="var(--warn)" stroke-width="1.5" marker-end="url(#b)"/>
+      <line x1="351" y1="176" x2="351" y2="196" stroke="var(--warn)" stroke-width="1.5" marker-end="url(#b)"/>
+      <line x1="565" y1="176" x2="565" y2="196" stroke="var(--warn)" stroke-width="1.5" marker-end="url(#b)"/>
+      <line x1="779" y1="176" x2="779" y2="196" stroke="var(--warn)" stroke-width="1.5" marker-end="url(#b)"/>
+
+      <rect x="44" y="196" width="186" height="78" fill="var(--warn-bg)" stroke="var(--warn)" stroke-width="1.5"/>
+      <text x="54" y="213" font-size="10" fill="var(--ink)">Drop the CE head: regress</text>
+      <text x="54" y="227" font-size="10" fill="var(--ink)">continuous latents, let the</text>
+      <text x="54" y="241" font-size="10" fill="var(--ink)">codec quantizer round.</text>
+      <text x="54" y="255" font-size="10" fill="var(--ink)">That is ELF-minus-ELF —</text>
+      <text x="54" y="269" font-size="10" fill="var(--ink)">a required ablation anyway.</text>
+
+      <rect x="258" y="196" width="186" height="78" fill="var(--warn-bg)" stroke="var(--warn)" stroke-width="1.5"/>
+      <text x="268" y="213" font-size="10" fill="var(--ink)">A bug, not a research</text>
+      <text x="268" y="227" font-size="10" fill="var(--ink)">finding. Suspects, in order:</text>
+      <text x="268" y="241" font-size="10" fill="var(--ink)">latent_std · mask polarity ·</text>
+      <text x="268" y="255" font-size="10" fill="var(--ink)">CE target off-by-one ·</text>
+      <text x="268" y="269" font-size="10" fill="var(--ink)">noise_scale 2.0</text>
+
+      <rect x="472" y="196" width="186" height="78" fill="var(--warn-bg)" stroke="var(--warn)" stroke-width="1.5"/>
+      <text x="482" y="213" font-size="10" fill="var(--ink)">WER &gt; 15 → upsampling</text>
+      <text x="482" y="227" font-size="10" fill="var(--ink)">indices. WER 5–15 →</text>
+      <text x="482" y="241" font-size="10" fill="var(--ink)">undertrained, or re-sweep</text>
+      <text x="482" y="255" font-size="10" fill="var(--ink)">p_mean / noise_scale, which</text>
+      <text x="482" y="269" font-size="10" fill="var(--ink)">were tuned on T5 latents.</text>
+
+      <rect x="686" y="196" width="186" height="78" fill="var(--warn-bg)" stroke="var(--warn)" stroke-width="1.5"/>
+      <text x="696" y="213" font-size="10" fill="var(--ink)">restore_cond or prompt_frac</text>
+      <text x="696" y="227" font-size="10" fill="var(--ink)">wiring. Cheap to fix here;</text>
+      <text x="696" y="241" font-size="10" fill="var(--ink)">expensive to discover after</text>
+      <text x="696" y="255" font-size="10" fill="var(--ink)">a LibriTTS run, where it</text>
+      <text x="696" y="269" font-size="10" fill="var(--ink)">looks like weak cloning.</text>
+
+      <line x1="0" y1="298" x2="880" y2="298" stroke="var(--rule-2)"/>
+      <text x="0" y="318" font-size="11" font-weight="600">Pass all four → LibriTTS 555 h, ELF-B⁺ 118.6 M, matched budget</text>
+      <text x="0" y="336" font-size="10" fill="var(--ink-3)">Cumulative cost of the ladder: roughly one day on a single H100. The LibriTTS run is the one that produces the table row.</text>
+    </g>
+  </svg>
+  </div>
+  <figcaption><b>Each gate names the one failure it catches.</b> The value of the ladder is not speed — it is that a
+  failure at Test 2 is unambiguous, because Test 0 already cleared the codec and Test 1 already cleared the
+  plumbing. Running LibriTTS first means a bad WER has four possible causes and no way to separate them.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2><span class="num">03</span> Test 2 configuration</h2>
+
+  <p>Split follows StyleTTS 2, which is the most-cited LJSpeech division: <strong>12,500 train / 100 val / 500
+  test</strong>. State it explicitly in any writeup — LJSpeech has no canonical split, so an unstated one is
+  uncomparable.</p>
+
+  <pre><i># voiceflow/configs/train_ljspeech_ELF-XS.yml</i>
+model: ELF-XS            <i># depth 6, hidden 384, heads 6 → 14.3M @ vocab 4096</i>
+                         <i># deliberately NOT the 118.6M paper model</i>
+max_length: 400          <i># MEASURED: p99 of frames/clip = 400 at the 10 s filter</i>
+                         <i># mean 259 frames (6.5 s), p95 387</i>
+
+<b>latent_std: 0.26409</b>     <i># MEASURED, job 14615, 1000 clips / 259k frames</i>
+                         <i># ELF's 0.2 is 1.32x off — never carry it over</i>
+audio_vocab_size: 4096
+frame_rate: 40
+sample_rate: 24000       <i># LJSpeech is 22.05 kHz — resample up, see §04</i>
+
+global_batch_size: 32    <i># 241 steps/epoch. ELF's default 512 gives 15 — catastrophic overfit</i>
+blr: 0.001               <i># effective lr = blr × 32/256 = 1.25e-4. Echo the derived value.</i>
+                         <i># a batch override set after the config string is built is ignored</i>
+optimizer: muon
+<i># 100k steps ≈ 415 epochs ≈ 3-6 h on one H100</i>
+
+label_drop_prob: 0.20
+prompt_frac: [0.0, 0.3]  <i># keep it on even for Test 2, so Test 3 needs no retrain</i>
+decoder_prob: 0.2
+self_cond_prob: 0.5
+
+denoiser_p_mean: -1.5    <i># re-sweep after Test 2 — tuned for T5 latents</i>
+denoiser_p_std: 0.8
+denoiser_noise_scale: 2.0</pre>
+
+  <h3>What to compare against</h3>
+  <p>Same corpus, same parameter league, published numbers. These are MOS-era results, so treat WER as the
+  comparable column and UTMOS as your own addition.</p>
+
+  <div class="tscroll"><table>
+    <thead><tr><th>Model</th><th>Params</th><th>WER ↓</th><th>MOS</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>Grad-TTS</td><td class="n">14.8 M</td><td class="n">—</td><td class="n">—</td><td>closest size match</td></tr>
+      <tr class="ours"><td>ELF-TTS-XS (this probe)</td><td class="n">14.3 M</td><td class="n">?</td><td class="n">—</td><td>diagnostic, not a result</td></tr>
+      <tr><td>Matcha-TTS (MAT-10)</td><td class="n">18.2 M</td><td class="n good">2.09</td><td class="n">3.84</td><td>the number to beat</td></tr>
+      <tr><td>VITS</td><td class="n">36.3 M</td><td class="n">2.52</td><td class="n">3.71</td><td></td></tr>
+      <tr><td>FastSpeech 2</td><td class="n">41.2 M</td><td class="n">4.18</td><td class="n">3.29</td><td></td></tr>
+      <tr class="gt"><td>WavTokenizer ceiling</td><td class="n">—</td><td class="n">?</td><td class="n">—</td><td>from Test 0 — your actual upper bound</td></tr>
+    </tbody>
+  </table></div>
+
+  <p class="note">The vocoder budgets stay symmetric: Matcha-TTS's 18.2 M excludes its 13.9 M HiFi-GAN, and ELF-XS's
+  14.3 M excludes the frozen WavTokenizer decoder. Character embeddings are inside the 14.3 M; there is no T5.</p>
+</section>
+
+<section>
+  <h2><span class="num">04</span> LJSpeech-specific traps</h2>
+
+  <div class="tscroll"><table>
+    <thead><tr><th>Trap</th><th>Why it bites</th><th>What to do</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>22.05 kHz vs 24 kHz</b></td>
+        <td>WavTokenizer-large-600 expects 24 kHz. Resampling up invents no information and the resampler's own
+        artifacts lower your ceiling before the model sees anything.</td>
+        <td>Resample once, offline, with a good filter. Measure the ceiling <em>after</em> resampling — that is the
+        real bound, not the published WavTokenizer figure.</td>
+      </tr>
+      <tr>
+        <td><b>Batch size 512</b></td>
+        <td>ELF's default gives 15 steps per epoch on LJSpeech. The model sees the same 13,100 clips thousands of
+        times with almost no gradient diversity.</td>
+        <td>32. And remember <code>lr = blr × bs/256</code>, so the effective learning rate moves with it — print
+        the derived value at startup rather than trusting the override took.</td>
+      </tr>
+      <tr>
+        <td><b>Single speaker hides mask bugs</b></td>
+        <td>With one voice, a broken prompt mask still produces plausible audio, because the "wrong" voice is the
+        only voice. The bug then surfaces on LibriTTS as mysteriously weak cloning.</td>
+        <td>Test 3 exists for this. Check pitch and pace continuity across frame P explicitly, not just
+        intelligibility.</td>
+      </tr>
+      <tr>
+        <td><b>Character-level text</b></td>
+        <td>LJSpeech transcripts carry spelled-out numerals and abbreviations inconsistently. A character model
+        learns the inconsistency.</td>
+        <td>Normalise once, offline, and keep the normaliser identical for LibriTTS so the two runs stay
+        comparable.</td>
+      </tr>
+      <tr>
+        <td><b>Narration prosody</b></td>
+        <td>One reader's audiobook range is narrow. A model that sounds good here can still collapse on LibriTTS's
+        2,456 speakers.</td>
+        <td>Treat a Test 2 pass as "no blocking bug", never as evidence the method works at scale.</td>
+      </tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2><span class="num">05</span> The day</h2>
+
+  <div class="tscroll"><table>
+    <thead><tr><th>Slot</th><th>Work</th><th>Output</th></tr></thead>
+    <tbody>
+      <tr><td class="n">~1 h, CPU</td><td>Test 0 — resample, encode LJSpeech, codebook margins, σ sweep path A, resynthesis ceiling</td><td><code>latent_std</code>, ceiling row, σ_A, go/no-go on the whole design</td></tr>
+      <tr><td class="n">~3 h</td><td>Write the diff — <code>encode_multimodal</code>, average-upsampling collator, <code>self_cond_proj</code> widening, CFG redirect</td><td>runnable training script</td></tr>
+      <tr><td class="n">~30 min, GPU</td><td>Test 1 — overfit 100 clips, no text</td><td>plumbing cleared or a named bug</td></tr>
+      <tr><td class="n">~4 h, GPU</td><td>Test 2 — full LJSpeech, ELF-XS, 100k steps</td><td>WER on the 500-clip split; σ_B to finish the Test 0 figure</td></tr>
+      <tr><td class="n">~1 h</td><td>Test 3 — prompt infilling from the Test 2 checkpoint</td><td>cloning mechanism cleared</td></tr>
+    </tbody>
+  </table></div>
+
+  <p>Roughly one day end to end, and the GPU time inside it is under six hours on a single card. The expensive
+  decision this buys is whether to spend the LibriTTS run at all — and if it does fail, which of the four risks
+  failed, which is the part that running LibriTTS first cannot tell you.</p>
+
+  <p class="note">Written as a working document for the voiceflow experiments. Numbers for LJSpeech geometry,
+  token budgets and ELF parameter counts were computed directly rather than quoted; the baseline WER/MOS figures
+  come from the Matcha-TTS comparison table, and the ZipVoice LibriTTS figures referenced elsewhere in this
+  project come from that paper's Tables III and IV.</p>
+</section>
+
+</div>
+</body>
+</html>
