@@ -158,6 +158,7 @@
     <li><a href="#s6e">Every hyperparameter</a></li>
     <li><a href="#s7">Sampling</a></li>
     <li><a href="#s8">The diagnosis chain</a></li>
+    <li><a href="#s10">Revision 2 — pretrained init, text norm, SDE</a></li>
     <li><a href="#s9">Status</a></li>
   </ol></nav>
 </header>
@@ -340,7 +341,7 @@
       <rect x="456" y="244" width="210" height="52" fill="var(--txt-bg)" stroke="var(--txt)" stroke-width="2"/>
       <text x="466" y="261" font-size="10.5" font-weight="600" fill="var(--txt)">nn.Embedding(40, 512)</text>
       <text x="466" y="276" font-size="10" fill="var(--txt)">learned · 20,480 params</text>
-      <text x="466" y="290" font-size="10" fill="var(--txt)">no T5, no phonemizer</text>
+      <text x="466" y="290" font-size="10" fill="var(--txt)">then RMSNorm — see 10b</text>
 
       <!-- three blocks -->
       <rect x="0" y="316" width="214" height="78" fill="none" stroke="var(--rule-2)" stroke-width="1.5"/>
@@ -978,6 +979,153 @@ wav   = WavTokenizerDecoder(codes)</pre>
   generative half to resolve a specific utterance from characters.</div>
 </section>
 
+<section id="s10">
+  <h2><span class="num">10</span> Revision 2 — pretrained init, text normalisation, SDE</h2>
+
+  <p>Three changes, each traced to a measurement above or to the released config of
+  <a href="https://github.com/Sslnon/ELF-S2T">ELF-S2T</a> — a sibling paper that runs ELF in the
+  opposite direction (speech&nbsp;→&nbsp;text) and reports 10.5&nbsp;% WER on LibriSpeech. Reading its
+  config exposed two places where I had copied ELF's <em>conditional</em> recipe when its
+  <em>unconditional</em> recipe was the right one.</p>
+
+  <div class="tscroll"><table>
+    <thead><tr><th>Knob</th><th>ELF owt (uncond)</th><th>ELF de-en (cond)</th><th>ELF-S2T</th><th>mine, rev 1</th><th>mine, rev 2</th></tr></thead>
+    <tbody>
+      <tr><td><code>decoder_noise_scale</code></td><td class="n">5.0</td><td class="n">1.0</td><td class="n">5.0</td><td class="n bad">1.0</td><td class="n">1.0 <i>(open)</i></td></tr>
+      <tr class="ours"><td>sampler</td><td class="n">SDE γ=1.5</td><td class="n">ODE</td><td class="n">SDE γ=1.5</td><td class="n bad">ODE</td><td class="n good">SDE γ=1.0</td></tr>
+      <tr class="ours"><td>backbone init</td><td class="n">—</td><td class="n">—</td><td class="n">pretrained ELF-B</td><td class="n bad">scratch</td><td class="n good">pretrained ELF-B</td></tr>
+      <tr><td><code>decoder_p_mean</code></td><td class="n">0.8</td><td class="n">0.8</td><td class="n">−0.5 <i>(audio forcing)</i></td><td class="n">0.8</td><td class="n">0.8 <i>(open)</i></td></tr>
+      <tr><td><code>decoder_prob</code></td><td class="n">0.2</td><td class="n">0.2</td><td class="n">0.5</td><td class="n">0.2</td><td class="n">0.2</td></tr>
+    </tbody>
+  </table></div>
+
+  <p class="note">ELF-S2T's headline mechanism, <b>audio forcing</b>, is one number:
+  <code>decoder_p_mean</code> from 0.8 to −0.5, training the unembed on a much noisier latent so the
+  text prior becomes unusable and the model must read the audio. It does not transfer to us, because
+  it fixes <em>"the CE head ignores the condition"</em> — and our CE head already matches the codec
+  ceiling. Our failure is in the denoiser. Listed above as open because its mirror (forcing the model
+  off <code>z</code> and onto the text) is still worth testing.</p>
+
+  <h3>10a — Pretrained ELF initialisation</h3>
+
+  <p>ELF's released weights and our model differ in only three tensors. Verified by loading:</p>
+
+  <pre>ELF init from checkpoint_95085 (ema)
+  <b>loaded  164 tensors, 87.59M / 90.50M (96.8%)</b>
+  partial self_cond_proj.weight: (512, 1024) -> (512, 1536), new cols zeroed
+  skipped unembed_bias:   shape (32100,)     vs (4096,)     (random init)
+  skipped unembed_kernel: shape (512, 32100) vs (512, 4096) (random init)</pre>
+
+  <div class="tscroll"><table>
+    <thead><tr><th>Tensor</th><th>ELF</th><th>Ours</th><th>Handling</th></tr></thead>
+    <tbody>
+      <tr><td>the entire block stack, both embedders, all prefix tokens, <code>text_proj</code>, <code>final_layer</code>, <code>proj_kernel</code></td><td class="n">—</td><td class="n">—</td><td class="good">164 tensors load as-is</td></tr>
+      <tr class="ours"><td><code>self_cond_proj.weight</code></td><td class="n">(512, 1024)</td><td class="n">(512, 1536)</td><td>ELF's columns copied into the first 1024; <b>the new 512 text columns zeroed</b></td></tr>
+      <tr><td><code>unembed_kernel</code></td><td class="n">(512, 32100)</td><td class="n">(512, 4096)</td><td>random — different vocabulary</td></tr>
+      <tr><td><code>unembed_bias</code></td><td class="n">(32100,)</td><td class="n">(4096,)</td><td>random</td></tr>
+      <tr><td><code>char_embed.weight</code></td><td class="n">absent</td><td class="n">(40, 512)</td><td>random</td></tr>
+    </tbody>
+  </table></div>
+
+  <p>Measured column-block norms straight after loading:</p>
+  <pre>z    [   0: 512]   ||W||_F 14.8576
+sc   [ 512:1024]   ||W||_F 17.3506
+<b>text [1024:1536]   ||W||_F  0.0000</b>   <i>&lt;- exactly zero</i></pre>
+
+  <div class="note win"><strong>Zeroing the text columns means training starts at precisely stock
+  ELF's behaviour</strong>, and the whole text pathway is learned as a residual growing from zero.
+  Nothing is perturbed at step 0.</div>
+
+  <p class="note"><strong>What this init is and is not worth.</strong> The time and SC-CFG
+  machinery is modality-agnostic and transfers outright. The block stack learned to denoise
+  <em>T5 text latents</em>, while our target is <em>codec audio latents</em> — both 512-d and both
+  near unit variance after normalisation, but different distributions. Whether a denoising prior
+  transfers across that gap is the bet this run is placing. ELF-S2T did not have to make it: their
+  target space <em>is</em> ELF's native space, which is why their init was free and ours is a
+  hypothesis.</p>
+
+  <h3>10b — Text-block RMSNorm</h3>
+
+  <p>§08 measured the text block entering the network 23× weaker than <code>z</code>, with the
+  projection putting <em>smaller</em> weights on it rather than compensating — effective contribution
+  3.7&nbsp;% of <code>z</code>'s. At low <var>t</var>, where <code>z</code> is nearly pure noise and
+  text is the only information available, the text was being drowned out by a factor of 27.</p>
+
+  <pre>self.text_norm = RMSNorm(dim, eps=1e-6)
+...
+text_emb = self.text_norm(text_emb.float())     <i># before the concat</i></pre>
+
+  <div class="tscroll"><table>
+    <thead><tr><th></th><th>‖text_emb‖ per frame</th><th>ratio to ‖z‖</th></tr></thead>
+    <tbody>
+      <tr><td>raw <code>char_embed</code></td><td class="n">0.451</td><td class="n bad">0.0199</td></tr>
+      <tr class="ours"><td>after RMSNorm</td><td class="n">22.599</td><td class="n good">0.9987</td></tr>
+      <tr class="gt"><td><code>z</code> = x₀/latent_std</td><td>22.627</td><td>1.0</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>10c — SDE sampling</h3>
+
+  <p>An SDE step churns <code>z</code> back toward noise before predicting, which re-anchors the
+  trajectory on the manifold the model was trained on rather than letting Euler error accumulate —
+  directly aimed at the exposure gap of 15× measured in §08b.</p>
+
+  <pre>α = 1 − γ·h
+z ← restore_cond(α·z + (1−α)·ε·noise_scale)
+t_cur = α·t                                  <i># predict from the earlier time</i>
+z ← z + (t_next − t_cur)·v</pre>
+
+  <p>Swept on the 100k rev-1 checkpoint — no retraining, 16 held-out clips, pure TTS:</p>
+
+  <div class="tscroll"><table>
+    <thead><tr><th>sampler</th><th>γ</th><th>steps</th><th>‖z−x₀‖</th><th>UTMOS</th><th>code bits</th><th>code acc</th></tr></thead>
+    <tbody>
+      <tr><td>ODE</td><td class="n">—</td><td class="n">32</td><td class="n">25.120</td><td class="n">2.999</td><td class="n">10.87</td><td class="n">0.29 %</td></tr>
+      <tr><td>ODE</td><td class="n">—</td><td class="n">64</td><td class="n">25.289</td><td class="n">3.027</td><td class="n">10.89</td><td class="n">0.34 %</td></tr>
+      <tr><td>SDE</td><td class="n">0.5</td><td class="n">32</td><td class="n">23.991</td><td class="n">3.070</td><td class="n">10.72</td><td class="n">0.38 %</td></tr>
+      <tr class="ours"><td>SDE</td><td class="n">1.0</td><td class="n">32</td><td class="n good">23.766</td><td class="n good">3.241</td><td class="n">10.65</td><td class="n">0.36 %</td></tr>
+      <tr><td>SDE</td><td class="n">1.5</td><td class="n">32</td><td class="n">23.792</td><td class="n">3.164</td><td class="n">10.65</td><td class="n">0.34 %</td></tr>
+      <tr><td>SDE</td><td class="n">3.0</td><td class="n">32</td><td class="n">21.338</td><td class="n bad">1.278</td><td class="n">10.12</td><td class="n">0.25 %</td></tr>
+      <tr class="gt"><td>codec ceiling</td><td>—</td><td>—</td><td>0</td><td>4.006</td><td>10.91</td><td>100 %</td></tr>
+    </tbody>
+  </table></div>
+
+  <p><strong>γ = 1.0 is the pick</strong>, slightly better than ELF's and ELF-S2T's 1.5. UTMOS rises
+  0.24 and terminal error drops 5&nbsp;%, but code accuracy is unmoved at chance — so SDE is a real
+  improvement and not the missing piece. γ = 3.0 collapses: over-churning destroys the trajectory.</p>
+
+  <h3>10d — The unconditional probe that motivated all of this</h3>
+
+  <p>Zeroing <em>both</em> the text and self-conditioning channels, which training sees on ~10&nbsp;%
+  of denoiser rows, so it is in-distribution rather than an extrapolation:</p>
+
+  <div class="tscroll"><table>
+    <thead><tr><th>condition</th><th>‖z−x₀‖</th><th>UTMOS</th><th>code bits</th><th>distinct codes</th></tr></thead>
+    <tbody>
+      <tr><td>text + SC (the system)</td><td class="n">25.261</td><td class="n">3.060</td><td class="n">10.327</td><td class="n">1489</td></tr>
+      <tr><td>text, no SC</td><td class="n">25.396</td><td class="n">2.568</td><td class="n">10.329</td><td class="n">1503</td></tr>
+      <tr class="ours"><td><b>unconditional</b> (text=0, SC=0)</td><td class="n">27.348</td><td class="n bad">2.394</td><td class="n">10.353</td><td class="n">1508</td></tr>
+      <tr><td>unconditional (text=0, SC on)</td><td class="n">27.404</td><td class="n">2.630</td><td class="n">10.381</td><td class="n">1519</td></tr>
+      <tr class="gt"><td>codec ceiling</td><td>0</td><td>4.006</td><td>10.430</td><td>1554</td></tr>
+    </tbody>
+  </table></div>
+
+  <p>Unconditional output is not speech-like either — UTMOS 2.39 against a 4.01 ceiling. <strong>So
+  the flow had not learned the data manifold, and text was never the bottleneck.</strong> Text does
+  contribute (UTMOS 2.394 → 3.060, +0.67), just nowhere near enough.</p>
+
+  <div class="note win"><strong>The code-entropy column is the sharper finding.</strong> Every
+  condition lands at 10.33–10.38 bits against the ceiling's 10.43, using 1489–1519 of the codebook
+  against the ceiling's 1554. The model is <em>not</em> collapsed onto a few codes (entropy would be
+  far lower) and <em>not</em> emitting uniform noise (entropy would approach 12 bits). It has learned
+  the <strong>marginal</strong> distribution of codes almost exactly right, and the
+  <strong>temporal</strong> structure not at all. Right histogram, wrong order.</p>
+
+  <p class="note">That is what rev 2 is aimed at: a pretrained backbone brings a sequence prior that
+  24 hours of audio could not supply, and SDE keeps the trajectory on whatever manifold the model
+  does know.</p>
+</section>
+
 <section id="s9">
   <h2><span class="num">09</span> Status</h2>
   <div class="tscroll"><table>
@@ -988,8 +1136,12 @@ wav   = WavTokenizerDecoder(codes)</pre>
       <tr><td>Test 1b — overfit 100</td><td>Plumbing: masks, CE targets, both branches</td><td class="n">147 s</td><td class="good">PASS</td></tr>
       <tr><td>Test 2 — full LJSpeech</td><td>Held-out generation</td><td class="n">42 min</td><td class="bad">sampling at chance</td></tr>
       <tr><td>Diagnosis §08a–e</td><td>Which component is the bottleneck</td><td class="n">~4 min</td><td class="good">located: low-t conditional resolution</td></tr>
-      <tr class="gt"><td>Next — scale up</td><td>LibriTTS 555 h, ELF-B⁺ 118.6 M, matched budget</td><td>~8 GPU-h</td><td>not started</td></tr>
-      <tr class="gt"><td>Also open</td><td>Muon vs AdamW · <code>decoder_prob</code> 0.5 · cross-clip prompt collator · ceiling WER/UTMOS</td><td>—</td><td>not started</td></tr>
+      <tr><td>Standard metrics</td><td>WER + UTMOS on 100 held-out clips, pure TTS</td><td class="n">~15 min</td><td class="bad">gen 99.2 % WER · <span class="good">TF 5.3 % = ceiling</span></td></tr>
+      <tr><td>Unconditional probe §10d</td><td>Is text the bottleneck, or the flow?</td><td class="n">~3 min</td><td class="bad">the flow — uncond UTMOS 2.39 vs 4.01</td></tr>
+      <tr><td>Sampler sweep §10c</td><td>ODE vs SDE on the existing checkpoint</td><td class="n">~5 min</td><td class="mid">SDE γ=1.0 best, +0.24 UTMOS</td></tr>
+      <tr class="ours"><td><b>Rev 2 §10</b></td><td>Pretrained ELF-B init + text RMSNorm + SDE γ=1.0</td><td class="n">~2.5 h</td><td>running</td></tr>
+      <tr class="gt"><td>Open</td><td><code>decoder_noise_scale</code> 5.0 · <code>decoder_p_mean</code> −0.5 mirror · Muon vs AdamW · T5 text encoder · cross-clip prompt collator</td><td>—</td><td>not started</td></tr>
+      <tr class="gt"><td>Blocked regardless</td><td>The codec ceiling is 5.44 % WER, already worse than Matcha-TTS's 2.09 %. LJSpeech cannot be won with this tokenizer however good the model gets.</td><td>—</td><td>needs a different codec</td></tr>
     </tbody>
   </table></div>
 
