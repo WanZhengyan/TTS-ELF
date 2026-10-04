@@ -26,6 +26,7 @@ from torch.utils.data import Dataset, DataLoader
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from elf_tts.model import ELF_models  # noqa: E402
+from elf_tts.layers import RMSNorm  # noqa: E402
 
 T_EPS = 5e-2
 
@@ -39,10 +40,15 @@ class ELFTTS(nn.Module):
     """ELF plus the character embedding that feeds its third channel block."""
 
     def __init__(self, name, char_vocab, audio_vocab, dim=512, max_length=400,
-                 cb_skip=False, **kw):
+                 cb_skip=False, text_norm=True, **kw):
         super().__init__()
         self.dim = dim
         self.cb_skip = cb_skip
+        # z enters with per-dim std ~1 (it is x0/latent_std), while a std-0.02
+        # embedding table enters ~23x weaker and the projection was measured not
+        # to compensate -- effective contribution 3.7% of z's. RMSNorm puts the
+        # text block on the same footing.
+        self.text_norm = RMSNorm(dim, eps=1e-6) if text_norm else None
         self.char_embed = nn.Embedding(char_vocab, dim, padding_idx=0)
         nn.init.normal_(self.char_embed.weight, std=0.02)
         with torch.no_grad():
@@ -77,6 +83,8 @@ class ELFTTS(nn.Module):
         """z, sc: (B,T,D). text_ids: (B,T) long. drop_text: (B,) 1 = unconditional."""
         if text_emb is None:
             text_emb = self.char_embed(text_ids)
+        if self.text_norm is not None:
+            text_emb = self.text_norm(text_emb.float())
         if drop_text is not None:
             text_emb = text_emb * (1.0 - drop_text.to(text_emb.dtype).view(-1, 1, 1))
         x = torch.cat([z, sc, text_emb], dim=-1)
@@ -88,6 +96,48 @@ class ELFTTS(nn.Module):
             # Learned head becomes a residual correction on nearest-codebook.
             logits = logits + (z.float() @ self.cb_W + self.cb_b)
         return net_out, logits
+
+
+def load_elf_init(model, path, use_ema=True, verbose=True):
+    """Initialise from a pretrained ELF checkpoint. 96.8% of our tensors match.
+
+    Three cannot:
+      unembed_kernel/bias   ELF's vocab is 32100 (T5), ours is 4096 (codec).
+                            Left at random init.
+      self_cond_proj.weight ELF concatenates 2 channel blocks (512*2=1024), we
+                            concatenate 3 (1536). ELF's columns are copied into
+                            the first 1024 and the new text columns are ZEROED,
+                            so the model starts at exactly ELF's behaviour and
+                            learns the text pathway as a residual from zero.
+    """
+    ck = torch.load(path, map_location="cpu", weights_only=False)
+    src = ck.get("ema_params1" if use_ema else "params", ck.get("params", ck))
+    tgt = model.state_dict()
+    loaded, skipped, partial = [], [], []
+    with torch.no_grad():
+        for k, v in src.items():
+            ours = f"elf.{k}"
+            if ours not in tgt:
+                skipped.append((k, "no such tensor")); continue
+            t = tgt[ours]
+            if t.shape == v.shape:
+                t.copy_(v); loaded.append(k)
+            elif "self_cond_proj.weight" in k and t.shape[0] == v.shape[0] and t.shape[1] > v.shape[1]:
+                t.zero_(); t[:, :v.shape[1]].copy_(v)
+                partial.append((k, f"{tuple(v.shape)} -> {tuple(t.shape)}, new cols zeroed"))
+            else:
+                skipped.append((k, f"shape {tuple(v.shape)} vs {tuple(t.shape)}"))
+    model.load_state_dict(tgt)
+    n_ok = sum(tgt[f"elf.{k}"].numel() for k in loaded)
+    n_tot = sum(p.numel() for p in model.parameters())
+    if verbose:
+        log(f"ELF init from {os.path.basename(path)} ({'ema' if use_ema else 'raw'})")
+        log(f"  loaded  {len(loaded)} tensors, {n_ok/1e6:.2f}M / {n_tot/1e6:.2f}M "
+            f"({n_ok/n_tot*100:.1f}%)")
+        for k, why in partial:  log(f"  partial {k}: {why}")
+        for k, why in skipped:  log(f"  skipped {k}: {why}  (random init)")
+    return {"loaded": len(loaded), "params_loaded": n_ok, "partial": partial,
+            "skipped": [k for k, _ in skipped]}
 
 
 # ============================================================ data
@@ -421,7 +471,7 @@ def convergence_metrics(model, loader, cfg, device, n_steps=32, cfg_scale=2.0,
 
 @torch.no_grad()
 def sample(model, batch, cfg, device, n_steps=32, cfg_scale=2.0, sc_cfg=1.0,
-           schedule="logit_normal"):
+           schedule="logit_normal", sampler="ode", sde_gamma=1.5):
     """ODE rollout then one decode forward. Returns predicted code ids."""
     model.eval()
     x0 = batch["latent"].to(device) / cfg.latent_std
@@ -439,7 +489,18 @@ def sample(model, batch, cfg, device, n_steps=32, cfg_scale=2.0, sc_cfg=1.0,
 
     nfe = 0
     for i in range(len(ts) - 1):
-        t = ts[i].expand(B)
+        if sampler == "sde" and sde_gamma > 0:
+            # Churn back toward noise, then predict from the earlier time. This
+            # re-anchors the trajectory on the noise manifold each step instead of
+            # letting integration error accumulate the way a pure ODE does.
+            h = float(ts[i + 1] - ts[i])
+            alpha = max(0.0, min(1.0, 1.0 - sde_gamma * h))
+            eps = torch.randn_like(z) * cfg.denoiser_noise_scale
+            z = restore(alpha * z + (1.0 - alpha) * eps, x0, prompt)
+            t_cur = alpha * float(ts[i])
+        else:
+            t_cur = float(ts[i])
+        t = torch.full((B,), t_cur, device=device)
         out_c = model(z, x_pred, text, t, self_cond_cfg_scale=scb, drop_text=zero_drop)
         v_c, x_c = net_to_v(out_c, z, t); nfe += 1
         v_c, x_c = restore(v_c, torch.zeros_like(z), prompt), restore(x_c, x0, prompt)
@@ -450,7 +511,7 @@ def sample(model, batch, cfg, device, n_steps=32, cfg_scale=2.0, sc_cfg=1.0,
             v = v_u + cfg_scale * (v_c - v_u)
         else:
             v = v_c
-        z = z + (ts[i + 1] - ts[i]) * v
+        z = z + (float(ts[i + 1]) - t_cur) * v
         z = restore(z, x0, prompt)
         x_pred = x_c
 
@@ -522,6 +583,14 @@ def main():
                     help="CE-branch fraction. ELF default 0.5; de-en config uses 0.2")
     ap.add_argument("--sample_schedule", default="logit_normal",
                     choices=["logit_normal", "uniform"])
+    ap.add_argument("--elf_init", default=None,
+                    help="path to a pretrained ELF torch checkpoint")
+    ap.add_argument("--no_text_norm", action="store_true",
+                    help="disable the text-block RMSNorm (ablation)")
+    ap.add_argument("--sampler", default="sde", choices=["sde", "ode"],
+                    help="ELF's own uncond config and ELF-S2T both use sde")
+    ap.add_argument("--sde_gamma", type=float, default=1.0,
+                    help="1.0 was best in the sampler sweep; 3.0 collapses")
     ap.add_argument("--wandb", action="store_true")
     ap.add_argument("--wandb_project", default="voiceflow")
     ap.add_argument("--wandb_run", default=None)
@@ -578,14 +647,18 @@ def main():
 
     codebook = load_codebook(args.codec_ckpt, device)
     model = ELFTTS(args.model, meta["char_vocab_size"], meta["audio_vocab_size"],
-                   dim=512, max_length=args.max_length, cb_skip=args.cb_skip).to(device)
+                   dim=512, max_length=args.max_length, cb_skip=args.cb_skip,
+                   text_norm=not args.no_text_norm).to(device)
     n_par = sum(p.numel() for p in model.parameters())
     n_elf = sum(p.numel() for p in model.elf.parameters())
     log(f"params total {n_par/1e6:.2f}M  (elf {n_elf/1e6:.2f}M + char_embed "
         f"{model.char_embed.weight.numel()/1e6:.3f}M)")
 
+    if args.elf_init:
+        load_elf_init(model, args.elf_init)
     ema = ELFTTS(args.model, meta["char_vocab_size"], meta["audio_vocab_size"],
-                 dim=512, max_length=args.max_length, cb_skip=args.cb_skip).to(device)
+                 dim=512, max_length=args.max_length, cb_skip=args.cb_skip,
+                 text_norm=not args.no_text_norm).to(device)
     model.set_codebook(codebook, cfg.latent_std, init_unembed=args.init_unembed)
     ema.load_state_dict(model.state_dict())
     ema.set_codebook(codebook, cfg.latent_std)
