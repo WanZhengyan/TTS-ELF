@@ -8,7 +8,7 @@
 #SBATCH --output=logs/train-%j.out
 #SBATCH --error=logs/train-%j.err
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 # Derived values are echoed before use: a var set after the arg string is built
 # would be silently ignored, so the log must show what actually ran.

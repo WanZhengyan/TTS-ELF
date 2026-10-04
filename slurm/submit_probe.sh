@@ -10,7 +10,7 @@
 
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 N_CLIPS="${N_CLIPS:-500}"
 SEED="${SEED:-0}"
 OUT_DIR="${OUT_DIR:-$ROOT/out}"

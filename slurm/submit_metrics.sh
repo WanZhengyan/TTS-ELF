@@ -8,7 +8,7 @@
 #SBATCH --output=logs/metric-%j.out
 #SBATCH --error=logs/metric-%j.err
 set -euo pipefail
-R="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+R="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 N="${N:-100}"; EXTRA="${EXTRA:-}"; OUT="${OUT:-$R/out/metrics.json}"
 echo "N=$N EXTRA=$EXTRA OUT=$OUT  node $(hostname)"
 source "$R/.venv/bin/activate"; cd "$R"

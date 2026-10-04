@@ -8,7 +8,7 @@
 #SBATCH --output=logs/sched-%j.out
 #SBATCH --error=logs/sched-%j.err
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 echo "=== sched test ===  job ${SLURM_JOB_ID:-local}  node $(hostname)"
 source "$ROOT/.venv/bin/activate"; cd "$ROOT"
 python sched_test.py

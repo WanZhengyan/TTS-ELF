@@ -8,7 +8,7 @@
 #SBATCH --output=logs/prep-%j.out
 #SBATCH --error=logs/prep-%j.err
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 LIMIT="${LIMIT:-0}"
 echo "=== preprocess ===  job ${SLURM_JOB_ID:-local}  node $(hostname)  LIMIT=$LIMIT  $(date -Is)"
 source "$ROOT/.venv/bin/activate"
