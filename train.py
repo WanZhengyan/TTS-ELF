@@ -142,7 +142,7 @@ def load_elf_init(model, path, use_ema=True, verbose=True):
 
 # ============================================================ data
 class LJCache(Dataset):
-    def __init__(self, cache_dir, split, val_n=500, test_n=500, seed=0):
+    def __init__(self, cache_dir, split, val_n=500, test_n=500, seed=0, max_s=0.0):
         with open(os.path.join(cache_dir, "index.pt"), "rb") as f:
             self.meta = pickle.load(f)
         self.recs = self.meta["records"]
@@ -154,6 +154,10 @@ class LJCache(Dataset):
         # StyleTTS2-style division: held-out test, small val, rest train
         self.ids = {"test": idx[:test_n], "val": idx[test_n:test_n + val_n],
                     "train": idx[test_n + val_n:]}[split]
+        if max_s and max_s > 0:
+            fr = self.meta["frame_rate"]
+            keep = [i for i in self.ids if self.recs[i]["T"] / fr <= max_s]
+            self.ids = np.array(keep)
         self.split = split
 
     def __len__(self):
@@ -170,7 +174,8 @@ class LJCache(Dataset):
         }
 
 
-def make_collate(max_length, prompt_frac, rng_seed=0, fixed_prompt=None):
+def make_collate(max_length, prompt_frac, rng_seed=0, fixed_prompt=None,
+                 crop_frames=0):
     """Average upsampling + prompt masking.
 
     text_ids[j] = chars[floor(j * N / T)] over the clip's real length T, so the
@@ -188,13 +193,21 @@ def make_collate(max_length, prompt_frac, rng_seed=0, fixed_prompt=None):
         prompt = np.zeros((B, L), dtype=np.float32)
         ids, Ts, Ps = [], [], []
         for b, it in enumerate(batch):
-            T = min(it["latent"].shape[0], L)
+            T_full = it["latent"].shape[0]
             N = max(len(it["chars"]), 1)
-            lat[b, :T] = it["latent"][:T]
-            code[b, :T] = it["code"][:T]
-            # average upsampling over the clip's own length
-            j = np.arange(T)
-            text[b, :T] = it["chars"][np.minimum((j * N) // T, N - 1)]
+            # upsample text over the FULL clip first, then crop both together, so
+            # the text a cropped frame carries is the text that frame really has
+            jf = np.arange(T_full)
+            text_full = it["chars"][np.minimum((jf * N) // T_full, N - 1)]
+            a = 0
+            if crop_frames and T_full > crop_frames:
+                a = int(rng.integers(0, T_full - crop_frames + 1))
+                T = crop_frames
+            else:
+                T = min(T_full, L)
+            lat[b, :T] = it["latent"][a:a + T]
+            code[b, :T] = it["code"][a:a + T]
+            text[b, :T] = text_full[a:a + T]
             valid[b, :T] = 1.0
             pf = fixed_prompt if fixed_prompt is not None else rng.uniform(*prompt_frac)
             P = int(round(T * pf))
@@ -458,7 +471,12 @@ def convergence_metrics(model, loader, cfg, device, n_steps=32, cfg_scale=2.0,
 
     out["rollout/z_err"] = nrm(z - x0)
     out["rollout/x0hat_err"] = nrm(x_pred - x0)
+    # The do-nothing baseline: emitting z=0 scores exactly ||x0||. Any rollout
+    # error ABOVE this is worse than generating nothing at all, which is where
+    # every configuration sat until this was added.
     out["ref/x0_norm"] = nrm(x0)
+    out["rollout/z_err_vs_trivial"] = nrm(z - x0) - nrm(x0)
+    out["rollout/beats_trivial"] = float(nrm(z - x0) < nrm(x0))
     for tv in probe_ts:
         out[f"tf/x0hat_err_t{tv}"] = tf_err[tv]
         out[f"sharpness/ratio_t{tv}"] = sharp[tv]
@@ -579,6 +597,13 @@ def main():
         HERE, "ckpt", "wavtokenizer_large_unify_600_24k.ckpt"))
     ap.add_argument("--init_unembed", action="store_true",
                     help="initialise unembed_kernel/bias from the codec codebook")
+    ap.add_argument("--decoder_noise_scale", type=float, default=5.0,
+                    help="ELF owt and ELF-S2T both use 5.0; de-en uses 1.0 and I "
+                         "had copied that")
+    ap.add_argument("--crop_frames", type=int, default=0,
+                    help="random crop to this many frames (0 = whole clip). Keeps "
+                         "every token in the corpus while shortening each example; "
+                         "160 frames = 4 s at 40 Hz.")
     ap.add_argument("--decoder_prob", type=float, default=0.2,
                     help="CE-branch fraction. ELF default 0.5; de-en config uses 0.2")
     ap.add_argument("--sample_schedule", default="logit_normal",
@@ -604,11 +629,14 @@ def main():
     cfg = Cfg()
     cfg.ema_decay = args.ema_decay
     cfg.decoder_prob = args.decoder_prob
+    cfg.decoder_noise_scale = args.decoder_noise_scale
     if args.no_text:
         cfg.label_drop_prob = 1.0            # text block always zero
     log(f"device {device} | model {args.model} | steps {args.steps} | batch {args.batch}")
     log(f"latent_std {cfg.latent_std} | label_drop {cfg.label_drop_prob} | "
-        f"decoder_prob {cfg.decoder_prob} | sample_schedule {args.sample_schedule}")
+        f"decoder_prob {cfg.decoder_prob} | decoder_noise_scale {cfg.decoder_noise_scale} | "
+        f"sample_schedule {args.sample_schedule} | sampler {args.sampler} g={args.sde_gamma} | "
+        f"crop_frames {args.crop_frames or 'none'}")
 
     wb = None
     if args.wandb:
@@ -632,7 +660,8 @@ def main():
         val_ds = train_ds                      # memorisation check
         log(f"OVERFIT mode: {len(train_ds)} clips, val == train")
 
-    coll = make_collate(args.max_length, (args.prompt_lo, args.prompt_hi), args.seed)
+    coll = make_collate(args.max_length, (args.prompt_lo, args.prompt_hi), args.seed,
+                        crop_frames=args.crop_frames)
     coll_eval = make_collate(args.max_length, (0.3, 0.3), args.seed, fixed_prompt=0.3)
     dl = DataLoader(train_ds, batch_size=args.batch, shuffle=True, drop_last=True,
                     num_workers=args.workers, collate_fn=coll, pin_memory=True,
@@ -726,6 +755,7 @@ def main():
                     cm[f"sampled/code_acc/{reg}/{tag}"] = a
                     log(f"  [conv @ {step} | {tag} | {reg}] "
                         f"code acc {a*100:5.2f}% | rollout ||z-x0|| {c['rollout/z_err']:6.2f} "
+                        f"({c['rollout/z_err_vs_trivial']:+.2f} vs trivial {c['ref/x0_norm']:.2f}) "
                         f"| sharpness t0.05 {c['sharpness/ratio_t0.05']:.3f} "
                         f"| exposure gap t0.7 {c.get('exposure_gap/t0.7', float('nan')):5.1f}x "
                         f"| text sens t0.05 {c['text_sens/rel_t0.05']*100:4.1f}%")
