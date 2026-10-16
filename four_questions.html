@@ -1,0 +1,224 @@
+<title>Four Open Questions</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+
+  :root{
+    color-scheme: light;
+    --paper:#f3f5f7; --card:#fbfbfc; --sunk:#eceff2;
+    --ink:#15181e; --ink-2:#4a515c; --ink-3:#79818d;
+    --rule:#d6dbe1; --rule-2:#e6e9ee;
+    --voice:#12707b; --voice-soft:#dbedef; --voice-edge:#7fbcc3;
+    --text-ch:#965909; --text-soft:#f4e6d2; --text-edge:#d4a768;
+    --elf:#4f5865; --elf-soft:#e3e6ea;
+    --frozen:#5d5a7d; --frozen-soft:#e6e4ee;
+    --ok:#1a6a44; --bad:#9c2a20;
+    --sans:"IBM Plex Sans Condensed","Helvetica Neue",Arial,sans-serif;
+    --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+    --measure:66ch;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --paper:#10131a; --card:#171b23; --sunk:#1c212a;
+    --ink:#e6eaf0; --ink-2:#a5aeba; --ink-3:#6f7883;
+    --rule:#2a313b; --rule-2:#212731;
+    --voice:#46c0cc; --voice-soft:#103036; --voice-edge:#2a6e77;
+    --text-ch:#deab5e; --text-soft:#352616; --text-edge:#7d5c2a;
+    --elf:#98a2ae; --elf-soft:#232933;
+    --frozen:#a8a3c6; --frozen-soft:#232132;
+    --ok:#56c48c; --bad:#e8857a;
+  }}
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --paper:#10131a; --card:#171b23; --sunk:#1c212a;
+    --ink:#e6eaf0; --ink-2:#a5aeba; --ink-3:#6f7883;
+    --rule:#2a313b; --rule-2:#212731;
+    --voice:#46c0cc; --voice-soft:#103036; --voice-edge:#2a6e77;
+    --text-ch:#deab5e; --text-soft:#352616; --text-edge:#7d5c2a;
+    --elf:#98a2ae; --elf-soft:#232933;
+    --frozen:#a8a3c6; --frozen-soft:#232132;
+    --ok:#56c48c; --bad:#e8857a;
+  }
+
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:var(--serif); font-size:16.5px; line-height:1.62;
+    padding-inline:20px; padding-block:0; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1020px; margin:0 auto; padding-block:46px 72px;}
+  .m{max-width:var(--measure);}
+
+  h1{font-family:var(--sans); font-weight:700;
+     font-size:clamp(30px,5.4vw,46px); line-height:1.05;
+     letter-spacing:-.015em; margin:0 0 14px; text-wrap:balance;}
+  h2{font-family:var(--sans); font-weight:600;
+     font-size:clamp(21px,3vw,26px); line-height:1.2; margin:0 0 10px;
+     text-wrap:balance;}
+  h3{font-family:var(--sans); font-weight:600; font-size:17px; margin:0 0 8px;}
+  p{margin:0 0 14px;}
+
+  .eyebrow{font-family:var(--mono); font-size:11px; font-weight:500;
+    letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3);
+    margin:0 0 7px;}
+  .lede{font-size:19px; line-height:1.55; color:var(--ink-2);}
+  code{font-family:var(--mono); font-size:.885em; background:var(--sunk);
+    padding:.1em .34em; border-radius:3px;}
+
+  section{margin-top:44px; padding-top:26px; border-top:1px solid var(--rule);}
+  section:first-of-type{border-top:0; padding-top:0;}
+
+  figure{margin:26px 0 0;}
+  .fig-scroll{overflow-x:auto; margin-inline:-4px; padding-inline:4px;}
+  svg.d{display:block; width:100%; max-width:100%; height:auto;
+        color:var(--ink);}
+  svg.wide{min-width:900px;}
+  svg.med{min-width:660px;}
+  figcaption{font-size:14px; line-height:1.5; color:var(--ink-2);
+    margin-top:11px; max-width:var(--measure);}
+  figcaption b{font-family:var(--sans); color:var(--ink);}
+
+  .t-scroll{overflow-x:auto; margin-top:20px;}
+  table{border-collapse:collapse; width:100%; min-width:620px; font-size:14.5px;}
+  th,td{text-align:left; padding:8px 14px 8px 0;
+    border-bottom:1px solid var(--rule-2); vertical-align:top;}
+  th{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--ink-3); font-weight:500;
+    border-bottom:1px solid var(--rule);}
+  td.n{font-family:var(--mono); font-variant-numeric:tabular-nums;
+    white-space:nowrap;}
+  td.sh{font-family:var(--mono); white-space:nowrap; font-size:13.5px;}
+  .ax{font-family:var(--serif); font-size:11.5px; color:var(--ink-3);
+    white-space:nowrap;}
+  tr.sum td{font-family:var(--sans); font-weight:600;
+    border-top:1px solid var(--rule); border-bottom:0;}
+  .tag{font-family:var(--mono); font-size:10px; letter-spacing:.08em;
+    text-transform:uppercase; padding:2px 6px; border-radius:3px;
+    font-weight:500; white-space:nowrap;}
+  .t-elf{background:var(--elf-soft); color:var(--elf);}
+  .t-new{background:var(--voice-soft); color:var(--voice);}
+  .t-frz{background:var(--frozen-soft); color:var(--frozen);}
+
+  pre{font-family:var(--mono); font-size:13px; line-height:1.68;
+    background:var(--card); border:1px solid var(--rule); border-radius:5px;
+    padding:14px 16px; overflow-x:auto; margin:18px 0 0; color:var(--ink);}
+  pre .c{color:var(--ink-3);}
+  pre b{color:var(--voice); font-weight:600;}
+
+  .note{border-left:2px solid var(--text-ch); padding:2px 0 2px 15px;
+    margin:22px 0 0; max-width:var(--measure); font-size:15.5px;
+    color:var(--ink-2);}
+  .note b{color:var(--ink); font-family:var(--sans);}
+
+  .foot{margin-top:50px; padding-top:20px; border-top:1px solid var(--rule);
+    font-family:var(--mono); font-size:11.5px; color:var(--ink-3);
+    line-height:1.7;}
+
+  .q{border-left:3px solid var(--voice);padding:0 0 0 16px;margin:0 0 20px;
+    max-width:var(--measure)}
+  .q h2{margin-bottom:6px}
+  .q p{margin:0;color:var(--ink-2);font-size:15px}
+  tr.best td{background:var(--voice-soft)}
+  tr.bad2 td{background:var(--bad-soft)}
+  .gap{background:var(--card);border:1px solid var(--rule);border-radius:5px;
+    padding:16px 18px;margin-top:16px}
+  .gap h3{display:flex;align-items:baseline;gap:9px;margin-bottom:8px}
+  .gap .bdg{font-family:var(--mono);font-size:10px;letter-spacing:.09em;
+    text-transform:uppercase;padding:2px 7px;border-radius:3px;font-weight:500;
+    background:var(--bad-soft);color:var(--bad)}
+  .gap p{margin:0 0 8px;font-size:14.5px;color:var(--ink-2)}
+  .gap p:last-child{margin:0}
+  .gap b{color:var(--ink);font-family:var(--sans)}
+
+</style>
+<div class="wrap">
+<section><p class="eyebrow">Unified TTS + S2T · 四个问题</p>
+<h1 class="m">prompt、留出集、自条件、time schedule</h1>
+<p class="lede m">四个都用测量回答，其中一个（ELF-S2T 的 schedule）回到论文原文核对，并查出三处我们和它不一样、而且有两处我从没试过的地方。</p></section>
+<section><div class="q"><p class="eyebrow">问题一</p><h2>我们有 voice prompt 吗？训练还是生成？</h2><p>答：<b>训练时有，生成时没有</b>。</p></div>
+<div class="t-scroll"><table><tbody>
+<tr><td>训练</td><td class="n">prompt_lo 0.0 · prompt_hi 0.3</td><td>每个 TTS 行独立抽 <code>K = T × U(0, 0.3)</code> 帧真实 mel 钉死为干净。均值约 15% × 512 ≈ <b>77 帧 ≈ 0.8 秒</b>。S2T 行不用 voice prompt（它的音频整段都是条件）</td></tr>
+<tr class="best"><td>生成（所有最终评测）</td><td class="n">prompt 0%</td><td><b>一帧都不给</b>。纯文本 → mel。日志里写着 <code>prompt 0%</code></td></tr>
+<tr><td>这样做合法吗</td><td class="n">是</td><td>训练抽的是 <code>U(0, 0.3)</code>，<b>包含 0</b>，所以 prompt=0 是分布内的，不是分布外外推</td></tr>
+</tbody></table></div>
+<div class="note"><b>为什么 LJSpeech 上不给 prompt 也行。</b>LJSpeech 只有一个朗读者（README 确认），嗓音被烤进权重里了，不需要 prompt 去指定。在多说话人的 LibriSpeech 上就完全不同 ——实测同一个模型，prompt 从 0% 提到 30%，UTMOS 从 <b>1.353 涨到 1.930</b>、WER 从 321.60 降到 79.97。因为 text → speech 在多说话人下是一对多，L2 的最优解是说话人的条件均值。</div>
+<div class="note" style="border-color:var(--bad)"><b>一个必须说清的限制。</b>既然不给 voice prompt，我们就<b>没法算 SIM-o / SIM-r</b>（说话人相似度）—— 那个指标需要一个参考说话人。所以我们只有 WER + UTMOS，缺这一类论文常报的第三个指标。</div>
+</section>
+<section><div class="q"><p class="eyebrow">问题二</p><h2>生成用的是训练集外的数据吗？</h2><p>答：<b>是，而且已验证无交集</b>。但有一层限定要说清。</p></div>
+<pre>idx  = Generator(seed=0).permutation(12910)
+val  = idx[  0: 300]
+test = idx[300: 600]      <span class="c"># 所有最终评测用的就是这 300 条</span>
+train= idx[600:    ]      <span class="c"># 12310 条</span>
+
+<span class="c"># 实测交集</span>
+train ∩ test = <span class="n2">0</span> 条       train ∩ val = <span class="n2">0</span> 条
+
+<span class="c"># 评测里出现的 id 举例</span>
+LJ012-0030   LJ033-0012   LJ005-0117   LJ014-0183
+</pre>
+<div class="note" style="border-color:var(--bad)"><b>留出的是句子，不是说话人。</b>LJSpeech 单说话人，所以那个嗓音当然在训练集里 —— 留出的只有这 300 条<b>话语</b>。这是 LJSpeech 这个 benchmark 的标准做法（Matcha-TTS、Grad-TTS、VITS 都如此），但它意味着我们<b>完全没有测过 zero-shot 的说话人泛化</b>。要测那个必须换多说话人数据，而我们在 LibriSpeech 上的 TTS 还没 work。</div>
+</section>
+<section><div class="q"><p class="eyebrow">问题三</p><h2>自条件（self-conditioning）效果怎么样？</h2><p>答：<b>有用，约 3 个 WER 点</b>。而且它和 SDE 可以互相替代。</p></div>
+<p class="m">在最好的 checkpoint（<code>hy_wh_af</code>，step 40,000）上做采样端消融，96 条留出片段，S2T 方向（不需要声码器，是这个方向的决定性指标）。</p>
+<div class="t-scroll"><table><thead><tr><th>自条件</th><th>K</th><th>SDE γ</th><th>WER %</th><th>相对参照</th><th>token 准确率</th></tr></thead><tbody>
+<tr class="best"><td class="n">开</td><td class="n">64</td><td class="n">0</td><td class="n">23.57</td><td class="n">−1.90</td><td class="n">42.22%</td></tr>
+<tr><td class="n">关</td><td class="n">32</td><td class="n">1.5</td><td class="n">23.91</td><td class="n">−1.56</td><td class="n">38.22%</td></tr>
+<tr><td class="n">开</td><td class="n">32</td><td class="n">1.5</td><td class="n">25.42</td><td class="n">−0.05</td><td class="n">41.81%</td></tr>
+<tr><td class="n"><b>开</b></td><td class="n"><b>32</b></td><td class="n"><b>0</b></td><td class="n"><b>25.47</b></td><td class="n">参照</td><td class="n"><b>36.45%</b></td></tr>
+<tr><td class="n">开</td><td class="n">128</td><td class="n">0</td><td class="n">26.00</td><td class="n">+0.53</td><td class="n">39.50%</td></tr>
+<tr><td class="n">开</td><td class="n">16</td><td class="n">0</td><td class="n">26.49</td><td class="n">+1.02</td><td class="n">36.19%</td></tr>
+<tr><td class="n">关</td><td class="n">128</td><td class="n">0</td><td class="n">26.60</td><td class="n">+1.13</td><td class="n">34.49%</td></tr>
+<tr><td class="n">关</td><td class="n">16</td><td class="n">0</td><td class="n">28.36</td><td class="n">+2.89</td><td class="n">38.25%</td></tr>
+<tr class="bad2"><td class="n">关</td><td class="n">32</td><td class="n">0</td><td class="n">28.42</td><td class="n">+2.95</td><td class="n">31.63%</td></tr>
+<tr class="bad2"><td class="n">关</td><td class="n">64</td><td class="n">0</td><td class="n">30.25</td><td class="n">+4.78</td><td class="n">29.08%</td></tr>
+</tbody></table></div>
+<p class="m" style="margin-top:14px">按 K 平均：<b>自条件开 25.38%，关 28.41%</b> ——约 3 个 WER 点。在 K=32 的 ODE 上是 25.47 对 28.42。</p>
+<div class="note"><b>SDE 可以替代自条件，但两个一起没有叠加。</b>关掉自条件时，γ=1.5 把 WER 从 28.42 救到 <b>23.91</b>；开着自条件时，γ 几乎不动（25.42 对 25.47）。两者都是在步与步之间注入信息，所以作用重叠。（我早先测到 SDE "无效"，那是在一个预测均值的坏模型上，结论不适用于这个。）</div>
+<h3 style="margin-top:30px">结构上：每个任务只有一个通道承载真自条件</h3>
+<p class="m">你问的那个 —— 对，而且恰好一个。<code>sc_T</code> 和 <code>sc_V</code>都被 <code>restore(sc, x0, prompt)</code> 处理过，所以在 prompt 位置上它们装的是 x₀ 本身、不是预测。实测一个 64 行的 batch：</p>
+<div class="t-scroll"><table><thead><tr><th></th><th>通道</th><th>真·自条件</th><th>被 restore 成 x₀</th><th>结构性为 0</th></tr></thead><tbody>
+<tr><td rowspan="2">TTS</td><td class="n">sc_V</td><td class="n"><b>422</b></td><td class="n">61</td><td class="n">77</td></tr>
+<tr><td class="n">sc_T</td><td class="n">0</td><td class="n">531</td><td class="n">29</td></tr>
+<tr><td rowspan="2">S2T</td><td class="n">sc_V</td><td class="n">0</td><td class="n">439</td><td class="n">121</td></tr>
+<tr><td class="n">sc_T</td><td class="n"><b>48</b></td><td class="n">0</td><td class="n">512</td></tr>
+</tbody></table></div>
+<div class="note"><b>真自条件的位置数和 flow 目标位置数完全相等</b>（TTS 422、S2T 48）—— 这是必然的，因为两者都是「通道存在且 prompt=0」。<br><br>顺带暴露一个冗余：被 restore 的那些位置上，<code>sc</code> 和 <code>z</code>装的是<b>同一份 x₀</b>。TTS 行有 531 个位置 × 512 维是重复数据，占 1736 维输入的一块。不是 bug（ELF 的结构就是这样），但如果要省算力，这里是一处。</div>
+</section>
+<section><div class="q"><p class="eyebrow">问题四</p><h2>为什么采样不能用训练的 time schedule？ELF-S2T 用什么？</h2><p>答：训练分布拿来当积分网格会留下一个<b>巨大的 Euler 步</b>。ELF-S2T 用的是 <b>SDE 采样器、K=128 步、ACFG w=2.0</b>。</p></div>
+<h3>为什么训练的分布不能当网格</h3>
+<p class="m">训练抽 <code>t ~ sigmoid(𝒩(−1.5, 0.8))</code>，它的分位数是：</p>
+<pre>p5   0.057      p25  0.115      中位 0.182      p75  0.277      <span class="n2">p95  0.455</span>
+P(t &gt; 0.5)  = 3.0%            P(t &gt; 0.75) = 0.05%
+</pre>
+<p class="m">所以把 31 个内部点按这个分布抽出来再排序，它们<b>全部落在 0.5 以下</b>，网格长成这样：</p>
+<pre><span class="c"># logit-normal 网格（试过，更差）</span>
+[0, 0.02, 0.04, ..., 0.24, <span class="n2">0.26</span>] ──────────────────────▶ <span class="n2">1.0</span>
+  31 个点挤在 [0, 0.26]              最后一步  h = <span class="n2">0.74</span>
+                                      = 均匀步长的 <b>24 倍</b>
+
+<span class="c"># 均匀网格（在用）</span>
+[0, 0.031, 0.062, ..., 0.969, 1.0]    每步 h = 0.03125
+</pre>
+<p class="m">实测那一跑：32 步只覆盖到 <b>t = 0.26</b>，然后一步跳到 1.0 —— 而且那一步正落在 <code>t_eps</code> 钳位生效的区间里，速度被封在 20×。ODE 积分必须覆盖整个 [0, 1]，<b>和训练时 t 的密度无关</b>：训练密度决定模型在哪些 t 学得好，积分网格决定数值解的精度，两件事。</p>
+<div class="note"><b>唯一一次成功的生成用的就是均匀网格。</b>让预训练的 ELF-B-owt 无条件采样、64 步均匀，它生成出通顺英文（"Paul W. Sandssoff is President and a retired professor at the University of Wisconsin"）。那是我判定「均匀是对的」的依据。</div>
+<h3 style="margin-top:30px">ELF-S2T 的原文设定</h3>
+<pre><span class="c"># 论文 Inference 段，原文</span>
+"Unless stated otherwise we sample with the <b>SDE sampler</b> for
+ <b>K = 128</b> steps with <b>audio guidance w = 2.0</b>, and decode tokens
+ once at the final step."
+
+<span class="c"># 他们自己的 K 消融</span>
+K = 32  →  约 10.7% WER
+K = 64  →  约 10.6%
+K = 128 →  约 10.5%        <span class="c"># 整个跨度只有 0.2 个点</span>
+</pre>
+<p class="m"><b>他们没有用 logit-normal 网格</b> —— 用的是 SDE 采样器。而且他们自己的消融说明<b>步数几乎不影响结果</b>（0.2 个点）。我们这边 K 的跨度是 3 个点、而且非单调（16→26.49、32→25.47、64→23.57、128→26.00），那是 96 条样本下的噪声，不是 64 处有真实最优。</p>
+</section>
+<section><p class="eyebrow">顺带查出的</p><h2 class="m">三处我们和论文不一样</h2>
+<p class="m">回论文核对 schedule 的时候，发现另外三处差异。先说对上的那个：<b>audio forcing 的值我用的 −0.5，和论文一致</b>（原文 "centring its log-signal-to-noise schedule at −0.5 rather than 0.8"；那个减号是 Unicode U+2212，我第一遍清洗文本时把它吃掉了，差点读成 +0.5）。</p>
+<div class="gap"><h3>decoder_prob <span class="bdg">没试过</span></h3><p>论文原文：<em>"Each step optimises one of two objectives chosen by a Bernoulli draw, the flow-matching objective on the path latent or the cross-entropy on the decode head, in a <b>1/1 split</b>."</em></p><p>也就是 <code>decoder_prob = 0.5</code>。我们用的是 ELF 自己的默认值 <b>0.2</b>。因为是单一分母，这个值就是 CE 的实际权重 —— 论文给 decode head 的权重是我们的 <b>2.5 倍</b>。</p></div>
+<div class="gap"><h3>ACFG 的训练侧 <span class="bdg">我们学错了分支</span></h3><p>论文原文：<em>"To enable audio guidance, we <b>drop the entire audio condition</b> on 10% of utterances during training so that an unconditional branch is learned alongside the conditional one."</em></p><p>我们有 <code>label_drop_prob = 0.1</code>，但它丢的是<b>升采样字符那一块（<code>cond</code>）</b>，<b>不是音频条件</b>。所以我们从来没有学到那个无条件分支，<b>推理时也就无法做 ACFG</b> ——这一条不能靠改采样补，必须重训。</p></div>
+<div class="gap"><h3>SDE + K=128 <span class="bdg">部分试过</span></h3><p>他们：SDE、K=128、w=2.0。我们：ODE、K=32、无 ACFG。SDE 和 K 我刚测了（见上表，在自条件开着时都接近无效），但<b>第三项 w=2.0 测不了</b>，因为缺那个无条件分支。他们的消融显示 w 从 1.0 到 3.0 时 WER 在 11.0–12.5 之间变化，所以 ACFG 对他们是有量级影响的一项。</p></div>
+<div class="note"><b>所以下一步最值得做的两件，都来自这次核对：</b>把 <code>decoder_prob</code> 从 0.2 改到 0.5（一个 flag），以及把 10% 的音频条件丢弃改成丢<b>音频</b>而不是字符块，这样才能在推理时用 ACFG w=2.0。两件都在论文里、都没试过。</div>
+</section>
+<p class="foot">prompt 与留出集的数字由 checkpoint 的 args 和缓存索引直接算出；自条件与 K/γ 消融来自 <code>ablate_sampling.py</code>（96 条留出片段、S2T 方向、EMA 权重）；通道活跃度统计来自一个 64 行的真实 batch；ELF-S2T 的设定来自 arXiv 2606.10368 原文。</p>
+</div>

@@ -64,9 +64,12 @@ class ELF(nn.Module):
         proj_drop: float = 0.0,
         bottleneck_dim: int = 128,
         n_input_blocks: int = 2,
+        input_width: Optional[int] = None,
         num_time_tokens: int = 4,
         num_self_cond_cfg_tokens: int = 4,
         num_model_mode_tokens: int = 0,
+        num_task_tokens: int = 0,
+        num_tasks: int = 2,
         vocab_size: int = 0,
         gradient_checkpointing: bool = False,
     ):
@@ -81,9 +84,17 @@ class ELF(nn.Module):
         self.proj_drop = proj_drop
         self.bottleneck_dim = bottleneck_dim
         self.n_input_blocks = n_input_blocks
+        # Stock ELF concatenates whole text_encoder_dim blocks, so the input is
+        # always a multiple of it. The unified model's voice channel is 100-d
+        # (raw mel: no encoder), so the width is not a multiple any more and is
+        # given explicitly. load_elf_init copies ELF's columns into the first
+        # 1024 and zeroes the rest, so the model still starts at ELF's behaviour.
+        self.input_width = (input_width if input_width is not None
+                            else n_input_blocks * text_encoder_dim)
         self.num_time_tokens = num_time_tokens
         self.num_self_cond_cfg_tokens = num_self_cond_cfg_tokens
         self.num_model_mode_tokens = num_model_mode_tokens
+        self.num_task_tokens = num_task_tokens
         self.vocab_size = vocab_size
         self.gradient_checkpointing = gradient_checkpointing
 
@@ -91,7 +102,7 @@ class ELF(nn.Module):
         #   2 blocks = stock ELF  [z, x_pred]
         #   3 blocks = ELF-TTS    [z, x_pred, text_emb]
         self.self_cond_proj = _make_linear(
-            n_input_blocks * text_encoder_dim, text_encoder_dim, bias=True)
+            self.input_width, text_encoder_dim, bias=True)
 
         # Text bottleneck projection.
         self.text_proj = BottleneckTextProj(text_encoder_dim, hidden_size, bottleneck_dim)
@@ -112,8 +123,16 @@ class ELF(nn.Module):
             self.mode_tokens = nn.Parameter(torch.empty(1, num_model_mode_tokens, hidden_size))
             NORMAL_INIT_002(self.mode_tokens)
 
+        # One learned prefix per task (0 = TTS, 1 = S2T), selected per row.
+        # Same idiom as mode_tokens, which is already taken by the
+        # decoder/denoiser branch and cannot double as a task marker.
+        if num_task_tokens > 0:
+            self.task_tokens = nn.Parameter(
+                torch.empty(num_tasks, num_task_tokens, hidden_size))
+            NORMAL_INIT_002(self.task_tokens)
+
         head_dim = hidden_size // num_heads
-        prefix_total = num_model_mode_tokens + num_time_tokens
+        prefix_total = num_model_mode_tokens + num_task_tokens + num_time_tokens
         if num_self_cond_cfg_tokens > 0:
             prefix_total += num_self_cond_cfg_tokens
         self.feat_rope = TextRotaryEmbeddingFast(
@@ -169,13 +188,14 @@ class ELF(nn.Module):
         deterministic: bool = True,
         self_cond_cfg_scale: Optional[torch.Tensor] = None,
         decoder_step_active: Optional[bool] = None,
+        task_id: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         """x: (N, S, C) or (N, S, 2C) with self-cond. t: (N,). attention_mask: (N, S), 1=valid."""
         B = x.shape[0]
 
         # Self-conditioning: input is [z, x_pred] when 2x encoder dim
         with torch.amp.autocast('cuda', enabled=False):
-            if x.shape[-1] == self.n_input_blocks * self.text_encoder_dim:
+            if x.shape[-1] == self.input_width:
                 x = self.self_cond_proj(x.float())
             x = self.text_proj(x.float())
             context_prefix_tokens = self.build_context(t, self_cond_cfg_scale)
@@ -183,6 +203,19 @@ class ELF(nn.Module):
         # Prepend learnable model-mode tokens (gated by decoder_step_active).
         # decoder_step_active may be None / Python bool / (B,) tensor — the last
         # form supports per-example branching at training time.
+        task_offset = 0
+        if self.num_task_tokens > 0:
+            if task_id is None:
+                task_id = torch.zeros(B, dtype=torch.long, device=x.device)
+            task_tok = self.task_tokens[task_id]        # (B, n_task, hidden)
+            x = torch.cat([task_tok, x], dim=1)
+            task_offset = self.num_task_tokens
+            if attention_mask is not None:
+                task_mask = torch.ones((B, self.num_task_tokens),
+                                       dtype=attention_mask.dtype,
+                                       device=attention_mask.device)
+                attention_mask = torch.cat([task_mask, attention_mask], dim=1)
+
         model_mode_offset = 0
         if self.num_model_mode_tokens > 0:
             mode_tokens = self.mode_tokens.expand(B, -1, -1)
@@ -222,7 +255,7 @@ class ELF(nn.Module):
                 x = block(x, rope_fn=self.feat_rope, attention_mask=attention_mask,
                           deterministic=deterministic)
 
-        x = x[:, prefix_len + model_mode_offset:]
+        x = x[:, prefix_len + task_offset + model_mode_offset:]
 
         # Factored decoder unembedding: hidden -> text_encoder_dim -> vocab
         with torch.amp.autocast('cuda', enabled=False):

@@ -1,0 +1,401 @@
+<title>协议审计与两方向结果</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    color-scheme: light;
+    --ground:#eceff3; --surface:#ffffff; --surface-2:#f4f6f9; --sunk:#e3e8ee;
+    --ink:#131922; --ink-2:#394655; --muted:#65727f; --line:#cfd7e0;
+    --steel:#2a5c87;        /* 结构色 */
+    --pass:#276b47; --fail:#9d2f27; --warn:#8a5806;
+    --pass-bg:#e6f1ea; --fail-bg:#fbeae8; --warn-bg:#fbf1e0; --steel-bg:#e6eef5;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+    --serif:"IBM Plex Serif",Georgia,serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --ground:#0d1116; --surface:#151b23; --surface-2:#1b222c; --sunk:#111720;
+      --ink:#e3e8ef; --ink-2:#bfc9d4; --muted:#8c99a7; --line:#28313c;
+      --steel:#6fa8d4;
+      --pass:#63bd8c; --fail:#e8857b; --warn:#d6a648;
+      --pass-bg:#122117; --fail-bg:#241513; --warn-bg:#231c0e; --steel-bg:#13212c;
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --ground:#0d1116; --surface:#151b23; --surface-2:#1b222c; --sunk:#111720;
+    --ink:#e3e8ef; --ink-2:#bfc9d4; --muted:#8c99a7; --line:#28313c;
+    --steel:#6fa8d4;
+    --pass:#63bd8c; --fail:#e8857b; --warn:#d6a648;
+    --pass-bg:#122117; --fail-bg:#241513; --warn-bg:#231c0e; --steel-bg:#13212c;
+  }
+
+  body{background:var(--ground); color:var(--ink); font-family:var(--sans);
+       font-size:15px; line-height:1.62; margin:0;}
+  .wrap{max-width:1000px; margin:0 auto; padding-inline:20px; padding-block:46px 72px;}
+  .prose{max-width:66ch;}
+  h1{font-family:var(--serif); font-weight:600; font-size:2.25rem; line-height:1.14;
+     letter-spacing:-.015em; margin:0 0 .45rem; text-wrap:balance;}
+  h2{font-family:var(--serif); font-weight:600; font-size:1.42rem; line-height:1.24;
+     margin:0 0 .55rem; text-wrap:balance;}
+  h3{font-weight:600; font-size:1rem; margin:0 0 .3rem;}
+  p{margin:0 0 .8rem;}
+  .lede{font-size:1.07rem; color:var(--ink-2); max-width:62ch;}
+  .eyebrow{font-family:var(--mono); font-size:.72rem; letter-spacing:.13em;
+           text-transform:uppercase; color:var(--muted); margin:0 0 .45rem;}
+  section{margin-top:50px;}
+  code{font-family:var(--mono); font-size:.87em; background:var(--surface-2);
+       padding:.1em .34em; border-radius:3px;}
+  .m{font-family:var(--mono);}
+  hr.r{height:1px; background:var(--line); border:0; margin:50px 0 0;}
+
+  /* 发现清单：编号即严重度顺序 */
+  ol.find{list-style:none; counter-reset:f; padding:0; margin:22px 0 0;}
+  ol.find > li{counter-increment:f; position:relative; padding-left:50px;
+               margin-bottom:24px;}
+  ol.find > li::before{content:counter(f); position:absolute; left:0; top:0;
+    width:32px; height:32px; border-radius:4px; display:grid; place-items:center;
+    font-family:var(--mono); font-size:.86rem; font-weight:600;}
+  li.sev-hi::before{background:var(--fail-bg); color:var(--fail);
+    border:1px solid var(--fail);}
+  li.sev-md::before{background:var(--warn-bg); color:var(--warn);
+    border:1px solid var(--warn);}
+  li.sev-lo::before{background:var(--surface-2); color:var(--muted);
+    border:1px solid var(--line);}
+  .tagrow{display:flex; gap:7px; flex-wrap:wrap; margin:.3rem 0 .5rem;}
+  .tag{font-family:var(--mono); font-size:.68rem; letter-spacing:.05em;
+       text-transform:uppercase; padding:.17em .46em; border-radius:3px;
+       border:1px solid var(--line); color:var(--muted);}
+  .tag.fixed{background:var(--pass-bg); color:var(--pass); border-color:var(--pass);}
+  .tag.open{background:var(--warn-bg); color:var(--warn); border-color:var(--warn);}
+  .tag.num{background:var(--fail-bg); color:var(--fail); border-color:var(--fail);}
+
+  .tscroll{overflow-x:auto;}
+  table{border-collapse:collapse; width:100%; font-size:.875rem;
+        font-variant-numeric:tabular-nums; margin:14px 0 0;}
+  th,td{text-align:left; padding:7px 11px; border-bottom:1px solid var(--line);
+        vertical-align:top;}
+  th{font-family:var(--mono); font-size:.71rem; letter-spacing:.06em;
+     text-transform:uppercase; color:var(--muted); font-weight:500;
+     border-bottom:1px solid var(--ink-2);}
+  td.n,th.n{text-align:right;}
+  td.n{font-family:var(--mono);}
+  tbody tr:hover{background:var(--surface-2);}
+  caption{caption-side:top; text-align:left; font-size:.85rem; color:var(--muted);
+          padding:0 0 7px;}
+  .good{color:var(--pass); font-weight:600;}
+  .bad{color:var(--fail); font-weight:600;}
+  .dim{color:var(--muted);}
+  tr.ours{background:var(--steel-bg);}
+  tr.ours td{font-weight:500;}
+
+  .checks{display:grid; gap:7px; margin:16px 0 0;}
+  .chk{display:grid; grid-template-columns:auto 1fr auto; gap:12px;
+       align-items:baseline; background:var(--surface); border:1px solid var(--line);
+       border-left:3px solid var(--pass); border-radius:0 5px 5px 0;
+       padding:9px 13px; font-size:.9rem;}
+  .chk .ok{font-family:var(--mono); font-size:.72rem; color:var(--pass);
+           font-weight:600;}
+  .chk .v{font-family:var(--mono); font-size:.8rem; color:var(--muted);
+          text-align:right; white-space:nowrap;}
+
+  figure{margin:26px 0 0;}
+  .scroller{overflow-x:auto; border:1px solid var(--line); border-radius:7px;
+            background:var(--surface);}
+  .scroller svg{display:block; max-width:100%; height:auto; min-width:680px;}
+  figcaption{font-size:.85rem; color:var(--muted); margin-top:9px; max-width:70ch;}
+
+  .note{border-left:3px solid var(--steel); background:var(--surface);
+        padding:13px 17px; border-radius:0 5px 5px 0; margin:18px 0;
+        font-size:.91rem;}
+  .note.bad{border-left-color:var(--fail);}
+  .note.warn{border-left-color:var(--warn);}
+  .note p:last-child{margin-bottom:0;}
+  ul.plain{padding-left:1.15rem; margin:.35rem 0 .8rem;}
+  ul.plain li{margin-bottom:.28rem;}
+  .kv{display:grid; grid-template-columns:auto 1fr; gap:5px 14px;
+      font-size:.88rem; margin:12px 0 0;}
+  .kv dt{font-family:var(--mono); font-size:.77rem; color:var(--muted);
+         letter-spacing:.04em;}
+  .kv dd{margin:0;}
+</style>
+
+<div class="wrap">
+
+<p class="eyebrow">统一 TTS + S2T · LibriSpeech 基准 · 2026-10-14</p>
+<h1>协议审计与两方向结果</h1>
+<p class="lede prose">这一轮把评测对齐到了文献协议，过程中发现我自己之前报的三个数字是错的。这页先列出所有发现，再给两个方向在对齐协议下的真实数字，最后是 TTS 为什么失败的实测诊断 —— 结论是流匹配训对了，问题在别处。</p>
+
+<hr class="r">
+
+<section>
+  <p class="eyebrow">发现</p>
+  <h2>七项偏离，按严重度排序</h2>
+  <p class="prose">编号就是严重度顺序。前三项各自改变了一个已报出的数字。</p>
+
+  <ol class="find">
+    <li class="sev-hi">
+      <h3>打分的波形里有一半是真音频</h3>
+      <div class="tagrow"><span class="tag num">改变数字</span><span class="tag fixed">已修</span></div>
+      <p><code>unified.restore()</code> 每一步都把 prompt 位置钉死在真实值上，所以 <code>tts_rollout</code> 返回的 mel 在 prompt 区装的<b>是录音本身，不是模型输出</b>。按整句打分就等于在给真音频打分。实测每条平均 <b>281 帧被钉死，占音频 50.7%</b>。</p>
+      <p>后果：<b>SIM-o 被抬到 0.9601</b>（Voicebox 报 0.593），因为它主要在拿真 prompt 和真目标比；WER 也被抬高（白送 3 秒完美音频）。改成只给生成区打分后，WER 从 63.77 变成 <b>183.59</b>。</p>
+    </li>
+
+    <li class="sev-hi">
+      <h3>评测处理了 0 条，却打印出一份完整结果</h3>
+      <div class="tagrow"><span class="tag num">改变数字</span><span class="tag fixed">已修</span></div>
+      <p><code>sample_unified.py</code> 里有两个不同的 split 概念：<code>--split</code> 是 LibriSpeech 目录名（用来定位 flac 算 <code>orig</code> 和 <code>ceiling</code>），<code>--cache_split</code> 是 cache 内部切片。我只传了后者，于是 <code>test-clean</code> 的 flac 路径全不存在，所有 clip 被跳过 —— 作业返回 <code>COMPLETED</code>，表里全是 <code>0.00</code> 和 <code>nan</code>。</p>
+      <p>这种静默比崩溃危险得多，所以除了传对参数，还加了一条硬断言：<b>0 条时直接报错退出并说明最可能的原因</b>。</p>
+    </li>
+
+    <li class="sev-hi">
+      <h3>test-clean 少了 197 条，全是最长的句子</h3>
+      <div class="tagrow"><span class="tag num">改变数字</span><span class="tag open">需重做预处理</span></div>
+      <p><code>preprocess_libri.py</code> 的 <code>--max_s</code> 默认 <b>16.0 秒</b>，于是官方 2,620 条里丢了 197 条（7.5%），抽查的缺失样本是 16.5–28.4 秒。<b>所以 S2T 的 17.20% 是在去掉了全部最长句子的 92.5% 子集上测的</b>，对文献的 2,620 条偏乐观。</p>
+      <p>训练集同样被截断：28,539 → 26,752（丢 6.3%），所以我们训的是 <b>92.5 小时而非完整 100 小时</b>。好消息是 TTS 用的 4–10 秒子集完全不触及这个上限，没被污染。</p>
+    </li>
+
+    <li class="sev-md">
+      <h3>prompt 是比例，文献用绝对秒数</h3>
+      <div class="tagrow"><span class="tag fixed">已修</span></div>
+      <p>我们用 <code>prompt_frac × T</code>，文献（Voicebox / VALL-E / F5-TTS）用<b>绝对 3 秒</b>。比例会让短 clip 的 prompt 短、长 clip 的长，于是 WER 把模型质量和时长分布混在一起。加了 <code>prompt_sec</code>，实测每条 <b>2.997 秒（±1 帧）</b>。</p>
+    </li>
+
+    <li class="sev-md">
+      <h3>训练的 prompt 范围覆盖不到评测协议</h3>
+      <div class="tagrow"><span class="tag open">下一跑必改</span></div>
+      <p>训练用 <code>prompt_hi = 0.3</code>，所以在 4 秒的 clip 上模型只见过 0–1.2 秒的 prompt。而文献协议给 3 秒 —— 在 4 秒 clip 上是 <b>75%</b>，完全在训练分布之外。审计实测 prompt 占比跨 <b>30%–75%</b>，上半段模型从未见过。<b>这可能是 TTS 失败的一大部分原因，而不只是模型弱。</b></p>
+    </li>
+
+    <li class="sev-md">
+      <h3>没有时长筛选，子集和文献不一致</h3>
+      <div class="tagrow"><span class="tag fixed">已修</span></div>
+      <p>F5-TTS 专门发布了 <b>4–10 秒子集（1,127 条）</b>，原因是此前各家英文模型都用不同的未公开子集、数字根本不可比。我们加了 <code>dur_range</code>，筛出 <b>1,237 条</b>，和他们的 1,127 接近。</p>
+    </li>
+
+    <li class="sev-lo">
+      <h3>任务变体标错 + 缺 SIM-o + 转录不是 PC 版</h3>
+      <div class="tagrow"><span class="tag fixed">部分已修</span></div>
+      <p>我们做的是 <b>continuation</b>（prompt 取同一句开头），常被引用的是 <b>cross-sentence</b>（prompt 取同说话人的另一句）。Voicebox 两个都报，所以该对的是 continuation 的 <b>2.0 / 0.593</b>，不是 1.9 / 0.662。SIM-o 已补上，但用的是公开的 WavLM-base-plus-sv 而非文献的 WavLM-large 微调版，所以趋势可比、数字不逐位可比。转录是纯 LibriSpeech（无标点大小写）而非 LibriSpeech-PC；WER 归一化会去标点，影响较小。</p>
+    </li>
+  </ol>
+</section>
+
+<hr class="r">
+
+<section>
+  <p class="eyebrow">污染机制</p>
+  <h2>为什么 SIM-o 会是 0.96</h2>
+
+  <figure>
+    <div class="scroller">
+      <svg viewBox="0 0 900 310" role="img" aria-label="一条 6 秒的 clip 上，前 3 秒的 prompt 区被 restore 钉死为真实录音，只有后半段是模型生成；整句打分把真音频也算进去了">
+        <defs>
+          <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7"
+                  markerHeight="7" orient="auto-start-reverse">
+            <polygon points="0,1 10,5 0,9" fill="currentColor"/>
+          </marker>
+          <pattern id="hatch" width="7" height="7" patternTransform="rotate(45)"
+                   patternUnits="userSpaceOnUse">
+            <line x1="0" y1="0" x2="0" y2="7" stroke="var(--fail)"
+                  stroke-width="2.6"/>
+          </pattern>
+        </defs>
+
+        <text x="20" y="26" font-family="IBM Plex Sans, sans-serif" font-size="13"
+              font-weight="600" fill="currentColor">一条 5.92 s 的 test-clean clip（平均情况）</text>
+
+        <!-- 时间轴 -->
+        <line x1="60" y1="118" x2="840" y2="118" stroke="currentColor"
+              stroke-width="1" opacity=".3"/>
+        <!-- prompt 区 -->
+        <rect x="60" y="56" width="395" height="52" rx="3" fill="url(#hatch)"
+              opacity=".30"/>
+        <rect x="60" y="56" width="395" height="52" rx="3" fill="none"
+              stroke="var(--fail)" stroke-width="2"/>
+        <text x="257" y="78" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="12.5" font-weight="600" fill="var(--fail)">prompt 区：restore() 钉死为真实录音</text>
+        <text x="257" y="96" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="11" fill="var(--fail)">281 帧 = 3.00 s = 音频的 50.7%</text>
+        <!-- 生成区 -->
+        <rect x="455" y="56" width="385" height="52" rx="3" fill="var(--steel-bg)"
+              stroke="var(--steel)" stroke-width="2"/>
+        <text x="647" y="78" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="12.5" font-weight="600" fill="var(--steel)">生成区：模型真正产出的部分</text>
+        <text x="647" y="96" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="11" fill="var(--steel)">274 帧 = 2.92 s</text>
+
+        <g font-family="IBM Plex Mono, monospace" font-size="10.5"
+           fill="currentColor" opacity=".55">
+          <text x="60" y="134" text-anchor="middle">0 s</text>
+          <text x="455" y="134" text-anchor="middle">3.00 s</text>
+          <text x="840" y="134" text-anchor="middle">5.92 s</text>
+        </g>
+
+        <!-- 错的打分窗 -->
+        <line x1="60" y1="176" x2="840" y2="176" stroke="var(--fail)"
+              stroke-width="2.4" marker-start="url(#a1)" marker-end="url(#a1)"/>
+        <text x="450" y="166" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="12" fill="var(--fail)">我之前的打分窗：整句</text>
+        <text x="450" y="196" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="11" fill="var(--fail)">WER 63.77   SIM-o 0.9601   UTMOS 2.459</text>
+
+        <!-- 对的打分窗 -->
+        <line x1="455" y1="246" x2="840" y2="246" stroke="var(--steel)"
+              stroke-width="2.4" marker-start="url(#a1)" marker-end="url(#a1)"/>
+        <text x="647" y="236" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="12" fill="var(--steel)">文献的打分窗：只算生成区</text>
+        <text x="647" y="266" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="11" fill="var(--steel)">WER 183.59   SIM-o 0.8246   UTMOS 1.814</text>
+
+        <text x="60" y="292" font-family="IBM Plex Sans, sans-serif" font-size="11.5"
+              fill="currentColor" opacity=".7">参考词由 Whisper 的词级时间戳在真录音上定位 3 秒之后的词得到 —— 没有强制对齐器时唯一严谨的切法</text>
+      </svg>
+    </div>
+    <figcaption>斜线区是录音本身被复制进输出的部分。它占了 50.7%，所以整句打分里一半是在给真音频打分 —— 这就是 SIM-o 0.96 的全部来源。</figcaption>
+  </figure>
+</section>
+
+<hr class="r">
+
+<section>
+  <p class="eyebrow">不变量检查</p>
+  <h2>七项全部通过</h2>
+  <p class="prose">写了 <code>audit.py</code> 在真实 batch 上验证头条数字依赖的不变量。每项都打印<b>实测量</b>而不只是 PASS —— 只打印 PASS 会藏住它通过的余量。</p>
+
+  <div class="checks">
+    <div class="chk"><span class="ok">PASS</span><span>TTS 行：所有文本位置都是干净条件（<code>prompt_t == t_act</code>）</span><span class="v">不等位置 0</span></div>
+    <div class="chk"><span class="ok">PASS</span><span>S2T 行：文本全部是待生成目标（<code>prompt_t</code> 全 0）</span><span class="v">非零 0</span></div>
+    <div class="chk"><span class="ok">PASS</span><span>S2T 行：mel 全部是干净条件（<code>prompt_v == v_act</code>）</span><span class="v">不等位置 0</span></div>
+    <div class="chk"><span class="ok">PASS</span><span>文本 latent 与 Whisper 特征永不同时非零</span><span class="v">重叠 0</span></div>
+    <div class="chk"><span class="ok">PASS</span><span>S2T 行：<code>cond</code> 被任务门控为 0（泄漏修复仍然生效）</span><span class="v">非零字符 0</span></div>
+    <div class="chk"><span class="ok">PASS</span><span>Whisper 只写在 mel 区，不碰 token 区</span><span class="v">token 区 0</span></div>
+    <div class="chk"><span class="ok">PASS</span><span>token 区整块文本活跃（不泄漏答案长度）</span><span class="v">t_act 1.0000</span></div>
+  </div>
+
+  <div class="note">
+    <p>这些检查是为前面第 1、2 项发现写的。两次静默失败都会被「断言这一批应该装什么」挡住，所以现在就断言了。</p>
+  </div>
+</section>
+
+<hr class="r">
+
+<section>
+  <p class="eyebrow">结果</p>
+  <h2>两个方向，对齐协议后</h2>
+
+  <h3>S2T：可用，但不完整</h3>
+  <div class="tscroll"><table>
+    <caption>LibriSpeech test-clean，128 步 Euler ODE，EMA 权重。WER <b>越低越好</b>，token accuracy <b>越高越好</b>。</caption>
+    <thead><tr><th>方法</th><th class="n">参数</th><th class="n">数据</th><th>冻结 encoder</th><th class="n">WER↓</th><th class="n">tok acc↑</th></tr></thead>
+    <tbody>
+      <tr class="ours"><td>我们（w=1.0）</td><td class="n">105.4M</td><td class="n">92.5 h</td><td>whisper-small</td><td class="n">17.20</td><td class="n">45.52%</td></tr>
+      <tr class="ours"><td>我们（ACFG w=2.0）</td><td class="n">105.4M</td><td class="n">92.5 h</td><td>whisper-small</td><td class="n">17.55</td><td class="n">45.64%</td></tr>
+      <tr><td>ELF-S2T（ELF-B）</td><td class="n">105.9M</td><td class="n">960 h</td><td>whisper-large-v3</td><td class="n good">10.50</td><td class="n dim">—</td></tr>
+      <tr><td>STTATTS（en_s）</td><td class="n">155M</td><td class="n">100 h</td><td>无</td><td class="n good">4.84</td><td class="n dim">—</td></tr>
+      <tr><td>SpeechT5</td><td class="n">0.14B</td><td class="n">960 h</td><td>无</td><td class="n good">4.4</td><td class="n dim">—</td></tr>
+      <tr><td class="dim">whisper-small 自己</td><td class="n dim">0.2B</td><td class="n dim">680K h</td><td class="dim">—</td><td class="n dim">3.4</td><td class="n dim">—</td></tr>
+    </tbody>
+  </table></div>
+  <p class="prose" style="margin-top:13px">ELF-S2T 的 ELF-B 是 105.9M，和我们的 105.4M 几乎一致，是最该对的那一行。差距的三个来源都明确：数据 92.5 h vs 960 h、encoder whisper-small vs large-v3、以及我们的 2,423 条少了 197 条最长句子。<b>注意 ACFG 在这里没有帮助</b>（17.55 vs 17.20），和 LJSpeech 上相反（那里值 3–4 点）—— 多说话人下无条件分支的行为不同，这是个单独待查的现象。</p>
+
+  <h3 style="margin-top:30px">TTS：不工作</h3>
+  <div class="tscroll"><table>
+    <caption>LibriSpeech test-clean 的 4–10 秒子集（1,237 条），3.00 秒 prompt，continuation 任务，32 步。WER <b>越低越好</b>，UTMOS 和 SIM-o <b>越高越好</b>。</caption>
+    <thead><tr><th>轨道 / 方法</th><th class="n">WER↓</th><th class="n">UTMOS↑</th><th class="n">SIM-o↑</th></tr></thead>
+    <tbody>
+      <tr><td>真音频</td><td class="n">1.51</td><td class="n">4.260</td><td class="n dim">—</td></tr>
+      <tr><td>天花板（真 mel → 声码器）</td><td class="n">1.51</td><td class="n">3.802</td><td class="n dim">—</td></tr>
+      <tr class="ours"><td>我们 w=1.0，<b>仅生成区（干净）</b></td><td class="n bad">183.59</td><td class="n">1.814</td><td class="n">0.8246</td></tr>
+      <tr class="ours"><td>我们 w=2.0，<b>仅生成区（干净）</b></td><td class="n bad">278.06</td><td class="n">1.493</td><td class="n">0.8138</td></tr>
+      <tr><td class="dim">我们 w=1.0，整句（含真 prompt，不可比）</td><td class="n dim">63.77</td><td class="n dim">2.459</td><td class="n dim">0.9601</td></tr>
+      <tr><td>Voicebox（continuation）</td><td class="n good">2.0</td><td class="n dim">—</td><td class="n good">0.593</td></tr>
+      <tr><td>Voicebox（cross-sentence）</td><td class="n good">1.9</td><td class="n dim">—</td><td class="n good">0.662</td></tr>
+      <tr><td>F5-TTS（LibriSpeech-PC, 32 NFE）</td><td class="n good">2.42</td><td class="n dim">—</td><td class="n dim">—</td></tr>
+      <tr><td>SpeechT5（统一模型）</td><td class="n good">5.91</td><td class="n">3.32</td><td class="n">0.33</td></tr>
+      <tr><td>UniVoice（统一模型）</td><td class="n good">4.06</td><td class="n">3.72</td><td class="n">0.56</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note bad" style="margin-top:14px">
+    <p><strong>TTS 方向在多说话人上确实不工作。</strong>183.59% 的 WER 意味着生成的音频转写出来基本是别的内容。SIM-o 0.82 看着不低，但它和 183% 的 WER 放在一起说明的是：音频听起来像那个说话人的音色，但说的内容不成句 —— 正是「预测均值」的表现。</p>
+  </div>
+  <p class="prose">还要说明规模差距：我们是 <b>92.5 小时 / 105M 参数</b>，Voicebox 是 6 万小时，F5-TTS 是 10 万小时 / 335M。数据差 650–1000 倍。所以即使把所有问题修好，TTS 也不会到 2%。</p>
+</section>
+
+<hr class="r">
+
+<section>
+  <p class="eyebrow">诊断</p>
+  <h2>流匹配训对了，问题是 exposure gap</h2>
+  <p class="prose">训练日志里本来就有专门测这件事的诊断。下表是 x̂₀ 的相对误差，<b>1.0 = 只会预测均值</b>：</p>
+
+  <div class="tscroll"><table>
+    <caption>左两列 TTS，右两列 S2T。「教师强制」= 从真实带噪路径出发；「自己的轨迹」= 从噪声积分出来的状态。</caption>
+    <thead><tr><th class="n">t</th><th class="n">TTS 教师强制</th><th class="n">TTS 自己轨迹</th><th class="n">TTS 比值</th><th class="n">S2T 教师强制</th><th class="n">S2T 自己轨迹</th><th class="n">S2T 比值</th></tr></thead>
+    <tbody>
+      <tr><td class="n">0.00</td><td class="n">0.69</td><td class="n">0.68</td><td class="n">0.99</td><td class="n">0.82</td><td class="n">0.80</td><td class="n">0.99</td></tr>
+      <tr><td class="n">0.25</td><td class="n good">0.45</td><td class="n bad">0.88</td><td class="n">1.93</td><td class="n">0.57</td><td class="n">0.83</td><td class="n">1.46</td></tr>
+      <tr><td class="n">0.50</td><td class="n good">0.32</td><td class="n bad">0.91</td><td class="n">2.89</td><td class="n">0.52</td><td class="n">0.85</td><td class="n">1.65</td></tr>
+      <tr><td class="n">0.75</td><td class="n good">0.26</td><td class="n bad">0.92</td><td class="n bad">3.50</td><td class="n">0.50</td><td class="n">0.87</td><td class="n">1.75</td></tr>
+    </tbody>
+  </table></div>
+
+  <p class="prose" style="margin-top:14px"><b>教师强制下误差降到 0.26 —— 流匹配目标优化得很好。</b>训练期的 <code>tts/tr</code> 也一直在 0.10–0.23。<b>但在自己的轨迹上误差是 0.92，几乎就是预测均值。</b>轨迹在积分的前四分之一就离开了训练流形，之后再也回不来。</p>
+
+  <h3 style="margin-top:26px">为什么 TTS 的 gap 是 S2T 的两倍</h3>
+  <p class="prose">两条原因，第一条确定，第二条是待检验的假设：</p>
+  <ul class="plain">
+    <li><b>S2T 最后有一步离散化。</b>token 上做 argmax 对潦草的 latent 很鲁棒，所以 S2T 带着 1.75 的 gap 仍能到 17% WER。TTS 的 mel 直接进声码器，均值化的 mel 就是含混声 —— 没有任何东西兜底。</li>
+    <li><b>条件信号的时间对齐（假设）。</b>S2T 的条件是 Whisper 特征，和音频逐帧正确对齐。TTS 的条件是 <code>t5_idx[j] = ⌊j·N/T⌋</code>，把 token <b>均匀拉伸</b>到帧上。真实语音里 token 时长极不均匀，所以这个信号在主动提供错误信息。教师强制时模型能靠带噪的真 mel 反推真实对齐；自己走轨迹时没这个拐杖。</li>
+  </ul>
+  <p class="prose">第二条本来是假设，所以我实测了它而不是断言 —— 用 Whisper 的词级时间戳在真录音上得到参考对齐，和均匀假设比。<b>结果比预想的更严重：</b></p>
+
+  <div class="tscroll"><table>
+    <caption>40 条 4–10 秒 clip、664 个词。均匀假设认为第 k 个单元起始于 clip 的 k/N 处；参考值是 Whisper 词级时间戳给出的真实起始时刻。</caption>
+    <thead><tr><th>量</th><th class="n">实测</th><th>含义</th></tr></thead>
+    <tbody>
+      <tr><td>起始时刻误差（均值）</td><td class="n bad">432 ms</td><td>中位 355 ms，p90 942 ms</td></tr>
+      <tr><td>平均每词时长</td><td class="n">393 ms</td><td>参照尺度</td></tr>
+      <tr><td><b>误差 / 词长</b></td><td class="n bad">1.10</td><td>误差比一整个词还长</td></tr>
+      <tr><td>折算成 mel 帧</td><td class="n bad">41 帧</td><td>条件信号平均偏 41 帧</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="note bad" style="margin-top:14px">
+    <p><strong>假设成立，而且是定量成立的。</strong>均匀拉伸把每个文本单元平均放到「一整个词以外」的位置 —— 这个条件信号不是不精确，是<b>指向了错误的词</b>。<code>audit.py</code> 里这一项以阈值 0.5 个词判定，实测 1.10，<b>FAIL</b>。</p>
+    <p>这解释了为什么 TTS 的 exposure gap 是 S2T 的两倍：教师强制时模型能从带噪的真 mel 里反推真实对齐，所以错误的 <code>t5_idx</code> 不致命；一旦自己走轨迹，它只剩一个平均偏一个词的信号可用。<b>所以修对齐不是锦上添花，是 TTS 的主线。</b></p>
+  </div>
+</section>
+
+<hr class="r">
+
+<section>
+  <p class="eyebrow">下一步</p>
+  <h2>按成本排序</h2>
+
+  <ol class="find">
+    <li class="sev-lo">
+      <h3>两个针对 exposure gap 的旋钮 —— 已实现但从未用过</h3>
+      <div class="tagrow"><span class="tag">零训练成本</span><span class="tag open">正在跑</span></div>
+      <p>我们一直用 <code>NFE=32, gamma=0.0</code>，即纯 ODE、完全不重加噪。两个扫描在跑：<code>NFE=128</code>（ELF-S2T 用的步数，步长更细则每步误差更小）、<code>gamma=1.0</code> 的 SDE churn（<code>z ← αz + (1−α)·噪声</code>，<b>重加噪本来就是扩散模型里修 exposure gap 的标准手段</b>，把偏离的状态拉回训练流形）。</p>
+    </li>
+    <li class="sev-md">
+      <h3>三处训练配置必改</h3>
+      <div class="tagrow"><span class="tag">各一轮训练</span></div>
+      <p><code>prompt_hi</code> 0.3 → 0.75（让 3 秒协议进入训练分布）；<code>--max_s</code> 16 → 更高（补回 1,787 条训练句和 197 条测试句）；encoder 换 <b>whisper-large-v3</b>（特征已算好，40 GB，和 ELF-S2T 对齐）。</p>
+    </li>
+    <li class="sev-md">
+      <h3>修对齐 —— 这是 TTS 的根因</h3>
+      <div class="tagrow"><span class="tag">要改架构</span></div>
+      <p>三个选项：<b>用我们自己的 S2T 方向产生对齐</b>（同一个网络里就有能做语音→文本的模型，这是统一模型独有的优势，别人要外挂 forced aligner）；在 112 个 token 位置上加一个时长预测头，用非均匀时长代替均匀拉伸；或者干脆不给帧级对齐、只把文本放在 token 区让模型自己学（E2-TTS 的做法，但他们用 10 万小时 / 335M）。</p>
+    </li>
+    <li class="sev-lo">
+      <h3>960 小时</h3>
+      <div class="tagrow"><span class="tag">数据已下载</span></div>
+      <p><code>train-clean-360</code>（104,014 条）和 <code>train-other-500</code>（148,688 条）已下载解压完毕。磁盘余量从 148 GB 涨到 1.2 TB，所以存 large-v3 特征（555 GB）也放得下，不必做即时计算。4 卡 DDP 已验证（全局 <code>denom</code> 归约出 8406.0，与单卡的 8406.0 完全相等），加速 4.3 倍。</p>
+    </li>
+  </ol>
+</section>
+
+</div>

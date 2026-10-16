@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Was The Decode Head Trained</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  *{box-sizing:border-box}
+  :root{
+    color-scheme:light;
+    --ground:#f6f7f9;--surface:#fff;--surface-2:#eceff4;--surface-3:#e2e6ed;
+    --ink:#171b22;--ink-2:#4a5260;--ink-3:#79818f;--rule:#d7dbe3;--rule-2:#b7bfcb;
+    --train:#0d7d72;--train-bg:#e2f2f0;
+    --frozen:#5a6472;--frozen-bg:#e6e9ee;
+    --off:#a0262b;--off-bg:#f8e7e7;
+    --sans:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  }
+  @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    color-scheme:dark;
+    --ground:#0e1116;--surface:#161b22;--surface-2:#1d232b;--surface-3:#262d37;
+    --ink:#e7eaef;--ink-2:#a9b1be;--ink-3:#7d8591;--rule:#2a313b;--rule-2:#3c4550;
+    --train:#45bdad;--train-bg:#0f2c2a;
+    --frozen:#8b94a3;--frozen-bg:#222932;
+    --off:#e4807f;--off-bg:#331a1b;
+  }}
+  :root[data-theme="dark"]{
+    color-scheme:dark;
+    --ground:#0e1116;--surface:#161b22;--surface-2:#1d232b;--surface-3:#262d37;
+    --ink:#e7eaef;--ink-2:#a9b1be;--ink-3:#7d8591;--rule:#2a313b;--rule-2:#3c4550;
+    --train:#45bdad;--train-bg:#0f2c2a;
+    --frozen:#8b94a3;--frozen-bg:#222932;
+    --off:#e4807f;--off-bg:#331a1b;
+  }
+  html,body{margin:0;padding:0}
+  body{background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.62;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:900px;margin:0 auto;padding-left:18px;padding-right:18px;padding-block:0 64px}
+
+  header.mast{padding-block:38px 20px;border-bottom:2px solid var(--ink)}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin:0 0 12px}
+  h1{font-size:clamp(26px,5vw,38px);line-height:1.1;letter-spacing:-.02em;font-weight:600;margin:0 0 16px;text-wrap:balance}
+  .answer{font-size:17px;line-height:1.55;margin:0;max-width:64ch}
+  .answer b{font-weight:600}
+  .yes{color:var(--train)}
+  .no{color:var(--off)}
+
+  .legend{display:flex;flex-wrap:wrap;gap:8px 20px;margin:26px 0 0;font-family:var(--mono);font-size:11.5px;color:var(--ink-2)}
+  .legend span{display:flex;align-items:center;gap:7px}
+  .legend i{width:13px;height:13px;border:1.5px solid;flex:none}
+  .lg-t{background:var(--train-bg);border-color:var(--train)}
+  .lg-f{background:var(--frozen-bg);border-color:var(--frozen)}
+  .lg-o{background:var(--off-bg);border-color:var(--off)}
+
+  section{padding-block:36px 0}
+  h2{font-size:20px;font-weight:600;margin:0 0 10px;padding-bottom:8px;border-bottom:1px solid var(--rule-2)}
+  p{margin:0 0 14px;max-width:70ch}
+  code{font-family:var(--mono);font-size:.875em;background:var(--surface-2);padding:.1em .34em;border-radius:2px}
+  figure{margin:20px 0 24px;background:var(--surface);border:1px solid var(--rule)}
+  .scroll{overflow-x:auto;padding:16px 16px 4px}
+  figure svg{display:block;max-width:100%;height:auto;min-width:660px}
+  figcaption{font-size:12.5px;line-height:1.5;color:var(--ink-2);padding:12px 16px 14px;border-top:1px solid var(--rule);background:var(--surface-2)}
+  figcaption b{color:var(--ink);font-weight:600}
+
+  .tscroll{overflow-x:auto;margin:0 0 20px;border:1px solid var(--rule);background:var(--surface)}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:560px}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+  thead th{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);background:var(--surface-2);font-weight:600;white-space:nowrap}
+  tbody tr:last-child td{border-bottom:none}
+  td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+  tr.hi{background:var(--train-bg)}
+  .note{font-size:13.5px;color:var(--ink-2);border-left:2px solid var(--rule-2);padding:3px 0 3px 14px;margin:0 0 14px;max-width:68ch}
+  .win{border-left-color:var(--train);background:var(--train-bg);padding:11px 14px;border-radius:0 3px 3px 0;color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">voiceflow · one question</p>
+  <h1>Was The Decode Head Trained</h1>
+  <p class="answer"><b class="yes">Yes, in the codec runs — and it worked.</b> ELF's decode head was
+  trained in every codec-target run and reached the codec's own quality ceiling.
+  <b class="no">No, in the latest mel run</b> — there I switched it off on purpose, because a mel
+  spectrogram has nothing discrete to decode into.</p>
+
+  <div class="legend">
+    <span><i class="lg-t"></i> trained</span>
+    <span><i class="lg-f"></i> frozen (pretrained, never updated)</span>
+    <span><i class="lg-o"></i> switched off</span>
+  </div>
+</header>
+
+<section>
+  <h2>The two pipelines, side by side</h2>
+
+  <figure>
+  <div class="scroll">
+  <svg viewBox="0 0 900 430" role="img" aria-label="Two pipelines compared. In the codec path the flow produces a latent, ELF's trained decode head turns it into a code, and a frozen codec decoder turns the code into a waveform. In the mel path the flow produces a mel spectrogram directly, the decode head is switched off, and a frozen Vocos vocoder turns the mel into a waveform.">
+    <defs>
+      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+      </marker>
+    </defs>
+    <g font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor">
+
+      <!-- ===== codec path ===== -->
+      <text x="0" y="14" font-size="12" font-weight="600">CODEC path — runs rev1, rev2, rev3</text>
+      <text x="0" y="30" font-size="10.5" fill="var(--ink-3)">decoder_prob = 0.2, so 20 % of every batch trains the decode head</text>
+
+      <rect x="0" y="44" width="150" height="46" fill="var(--train-bg)" stroke="var(--train)" stroke-width="2"/>
+      <text x="75" y="64" text-anchor="middle" font-size="11" font-weight="600" fill="var(--train)">flow / denoiser</text>
+      <text x="75" y="79" text-anchor="middle" font-size="10" fill="var(--train)">TRAINED</text>
+
+      <line x1="150" y1="67" x2="186" y2="67" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+      <text x="168" y="59" text-anchor="middle" font-size="9.5" fill="var(--ink-3)">latent</text>
+
+      <rect x="186" y="44" width="176" height="46" fill="var(--train-bg)" stroke="var(--train)" stroke-width="2.5"/>
+      <text x="274" y="64" text-anchor="middle" font-size="11" font-weight="600" fill="var(--train)">ELF decode head</text>
+      <text x="274" y="79" text-anchor="middle" font-size="10" fill="var(--train)">TRAINED ← your question</text>
+
+      <line x1="362" y1="67" x2="398" y2="67" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+      <text x="380" y="59" text-anchor="middle" font-size="9.5" fill="var(--ink-3)">code</text>
+
+      <rect x="398" y="44" width="168" height="46" fill="var(--frozen-bg)" stroke="var(--frozen)" stroke-width="1.5" stroke-dasharray="5 3"/>
+      <text x="482" y="64" text-anchor="middle" font-size="11" font-weight="600" fill="var(--frozen)">codec decoder</text>
+      <text x="482" y="79" text-anchor="middle" font-size="10" fill="var(--frozen)">frozen</text>
+
+      <line x1="566" y1="67" x2="602" y2="67" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+      <text x="610" y="71" font-size="11">waveform</text>
+
+      <!-- verdict box, codec -->
+      <rect x="700" y="40" width="200" height="54" fill="var(--train-bg)" stroke="var(--train)" stroke-width="1.5"/>
+      <text x="710" y="58" font-size="10.5" font-weight="600" fill="var(--train)">the head worked</text>
+      <text x="710" y="73" font-size="10" fill="var(--train)">teacher-forced WER 5.27</text>
+      <text x="710" y="87" font-size="10" fill="var(--train)">= the ceiling, 5.44</text>
+
+      <line x1="0" y1="118" x2="900" y2="118" stroke="var(--rule-2)" stroke-dasharray="4 3"/>
+
+      <!-- ===== mel path ===== -->
+      <text x="0" y="146" font-size="12" font-weight="600">MEL path — the latest run</text>
+      <text x="0" y="162" font-size="10.5" fill="var(--ink-3)">--no_ce forces decoder_prob = 0, so the head never gets a gradient</text>
+
+      <rect x="0" y="176" width="150" height="46" fill="var(--train-bg)" stroke="var(--train)" stroke-width="2"/>
+      <text x="75" y="196" text-anchor="middle" font-size="11" font-weight="600" fill="var(--train)">flow / denoiser</text>
+      <text x="75" y="211" text-anchor="middle" font-size="10" fill="var(--train)">TRAINED</text>
+
+      <line x1="150" y1="199" x2="186" y2="199" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+      <text x="168" y="191" text-anchor="middle" font-size="9.5" fill="var(--ink-3)">mel</text>
+
+      <rect x="186" y="176" width="176" height="46" fill="var(--off-bg)" stroke="var(--off)" stroke-width="2" stroke-dasharray="6 4"/>
+      <text x="274" y="196" text-anchor="middle" font-size="11" font-weight="600" fill="var(--off)">ELF decode head</text>
+      <text x="274" y="211" text-anchor="middle" font-size="10" fill="var(--off)">SWITCHED OFF</text>
+      <path d="M196,186 L352,212" stroke="var(--off)" stroke-width="1.5"/>
+      <path d="M352,186 L196,212" stroke="var(--off)" stroke-width="1.5"/>
+
+      <!-- mel bypasses the head entirely -->
+      <path d="M168,199 L168,246 L482,246 L482,222" fill="none" stroke="var(--train)" stroke-width="2" marker-end="url(#ar)"/>
+      <text x="325" y="262" text-anchor="middle" font-size="10.5" fill="var(--train)">the mel goes straight to the vocoder — nothing to decode into</text>
+
+      <rect x="398" y="176" width="168" height="46" fill="var(--frozen-bg)" stroke="var(--frozen)" stroke-width="1.5" stroke-dasharray="5 3"/>
+      <text x="482" y="196" text-anchor="middle" font-size="11" font-weight="600" fill="var(--frozen)">Vocos vocoder</text>
+      <text x="482" y="211" text-anchor="middle" font-size="10" fill="var(--frozen)">frozen</text>
+
+      <line x1="566" y1="199" x2="602" y2="199" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+      <text x="610" y="203" font-size="11">waveform</text>
+
+      <rect x="700" y="172" width="200" height="54" fill="var(--surface-3)" stroke="var(--rule-2)" stroke-width="1.5"/>
+      <text x="710" y="190" font-size="10.5" font-weight="600">this is why you saw</text>
+      <text x="710" y="205" font-size="10" fill="var(--ink-2)">ce 0.0000</text>
+      <text x="710" y="219" font-size="10" fill="var(--ink-2)">ce_acc 0.00 %</text>
+
+      <line x1="0" y1="290" x2="900" y2="290" stroke="var(--rule-2)"/>
+
+      <!-- what each path trained -->
+      <text x="0" y="314" font-size="12" font-weight="600">So, what was trained in each run</text>
+      <text x="0" y="338" font-size="11">codec runs</text>
+      <rect x="110" y="326" width="150" height="20" fill="var(--train-bg)" stroke="var(--train)"/>
+      <text x="185" y="340" text-anchor="middle" font-size="10" fill="var(--train)">denoiser</text>
+      <rect x="266" y="326" width="170" height="20" fill="var(--train-bg)" stroke="var(--train)"/>
+      <text x="351" y="340" text-anchor="middle" font-size="10" fill="var(--train)">decode head</text>
+      <text x="446" y="340" font-size="10" fill="var(--ink-3)">+ character table</text>
+
+      <text x="0" y="372" font-size="11">mel run</text>
+      <rect x="110" y="360" width="150" height="20" fill="var(--train-bg)" stroke="var(--train)"/>
+      <text x="185" y="374" text-anchor="middle" font-size="10" fill="var(--train)">denoiser</text>
+      <rect x="266" y="360" width="170" height="20" fill="var(--off-bg)" stroke="var(--off)" stroke-dasharray="4 3"/>
+      <text x="351" y="374" text-anchor="middle" font-size="10" fill="var(--off)">nothing</text>
+      <text x="446" y="374" font-size="10" fill="var(--ink-3)">+ character table</text>
+
+      <text x="0" y="406" font-size="10.5" fill="var(--ink-3)">The codec encoder, the codebook and both vocoders were frozen in every run — they are pretrained and never updated.</text>
+    </g>
+  </svg>
+  </div>
+  <figcaption><b>Same backbone, two endings.</b> In the codec path the decode head is what turns a
+  continuous latent into a discrete code, and it was trained. In the mel path the flow's output
+  <i>is</i> the final representation, so there is nothing for that head to classify into and it was
+  removed from the loss.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>How I know, rather than assuming</h2>
+
+  <p>I checked the two saved checkpoints directly. A head that never receives a gradient keeps its
+  initial values; a trained one moves.</p>
+
+  <div class="tscroll"><table>
+    <thead><tr><th>Run</th><th><code>unembed_kernel</code> std</th><th>(init scale)</th><th><code>unembed_bias</code> max</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td><b>codec</b> — <code>decoder_prob 0.2</code></td><td class="n">1.034</td><td class="n">~0.044</td><td class="n">3.179</td><td><b style="color:var(--train)">trained</b> — 23× its init scale, bias well away from zero</td></tr>
+      <tr><td><b>mel</b> — <code>--no_ce</code></td><td class="n">0.143</td><td class="n">~0.100</td><td class="n">0.000000</td><td><b style="color:var(--off)">never trained</b> — bias is exactly zero</td></tr>
+    </tbody>
+  </table></div>
+
+  <p><strong>The bias is the decisive one.</strong> It starts at zero, and any gradient at all would
+  move it. On the codec path it reached 3.18; on the mel path it is still exactly 0.000000 after
+  100,000 steps.</p>
+
+  <div class="note">One correction to my own check: I first flagged the mel head as "trained" because
+  its EMA copy differed from the raw copy by 3×10⁻⁵. That is floating-point drift from applying
+  <code>p ← 0.9999·p + 0.0001·p</code> a hundred thousand times to two identical tensors, not
+  learning. The threshold I used was too tight; the bias is the reliable signal.</div>
+</section>
+
+<section>
+  <h2>Why this matters more than it sounds</h2>
+
+  <div class="note win"><strong>The decode head is the one ELF-specific mechanism that demonstrably
+  works on audio.</strong> Given a correct latent, it reproduced the codec's own quality exactly —
+  teacher-forced WER 5.27 against a ceiling of 5.44 — and it beat plain nearest-codebook rounding by
+  63 percentage points at the noise level it trains on. The part that failed was the flow feeding it,
+  not the head.</div>
+
+  <div class="tscroll"><table>
+    <thead><tr><th>ELF mechanism</th><th>Verdict on audio</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td>Late discretization (the decode head)</td><td><b style="color:var(--train)">works</b> — matches the codec ceiling, +63 pts over nearest-neighbour</td></tr>
+      <tr><td>Self-conditioning</td><td>wired in, but contributes under 1 %</td></tr>
+      <tr><td>SC-CFG</td><td>inert at the released setting, where the guidance term is exactly zero</td></tr>
+      <tr><td>Flow on codec latents</td><td><b style="color:var(--off)">fails</b> — 12× more effective positions than ELF's native target</td></tr>
+      <tr><td>Flow on mel</td><td>generates speech, 6.2 WER points behind a perfect reconstruction</td></tr>
+    </tbody>
+  </table></div>
+
+  <p>So the mel run, by switching the head off, gave up the one piece that was working in order to fix
+  the piece that was not. That is a reasonable trade for getting audible speech out, but it is a trade.</p>
+
+  <p>It also suggests the obvious next build: let the flow generate mel, where it demonstrably works,
+  and then put ELF's decode head back on the end to map mel to codec codes — a mapping already shown
+  to reach the ceiling. Two parts, each in the space it is good at.</p>
+</section>
+
+</div>
+</body>
+</html>

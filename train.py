@@ -147,8 +147,9 @@ class LJCache(Dataset):
             self.meta = pickle.load(f)
         self.recs = self.meta["records"]
         self.total = self.meta["total_frames"]
+        self.dim = self.meta.get("dim", 512)
         self.lat = np.memmap(os.path.join(cache_dir, "latents.f16"),
-                             dtype=np.float16, mode="r", shape=(self.total, 512))
+                             dtype=np.float16, mode="r", shape=(self.total, self.dim))
         idx = np.arange(len(self.recs))
         np.random.default_rng(seed).shuffle(idx)
         # StyleTTS2-style division: held-out test, small val, rest train
@@ -175,7 +176,7 @@ class LJCache(Dataset):
 
 
 def make_collate(max_length, prompt_frac, rng_seed=0, fixed_prompt=None,
-                 crop_frames=0):
+                 crop_frames=0, dim=512):
     """Average upsampling + prompt masking.
 
     text_ids[j] = chars[floor(j * N / T)] over the clip's real length T, so the
@@ -186,7 +187,7 @@ def make_collate(max_length, prompt_frac, rng_seed=0, fixed_prompt=None,
     def collate(batch):
         B = len(batch)
         L = max_length
-        lat = np.zeros((B, L, 512), dtype=np.float32)
+        lat = np.zeros((B, L, dim), dtype=np.float32)
         code = np.zeros((B, L), dtype=np.int64)
         text = np.zeros((B, L), dtype=np.int64)
         valid = np.zeros((B, L), dtype=np.float32)
@@ -252,7 +253,7 @@ def net_to_v(net_out, z, t):
 
 # ============================================================ train step
 def train_step(model, ema, batch, cfg, opt, device, scaler=None):
-    x0 = (batch["latent"].to(device, non_blocking=True) / cfg.latent_std)
+    x0 = (batch["latent"].to(device, non_blocking=True) - cfg.latent_mean) / cfg.latent_std
     code = batch["code"].to(device, non_blocking=True)
     text = batch["text"].to(device, non_blocking=True)
     valid = batch["valid"].to(device, non_blocking=True)
@@ -297,13 +298,18 @@ def train_step(model, ema, batch, cfg, opt, device, scaler=None):
         sc_half = restore(x_u * use_sc, x0, prompt) * (1 - d.view(-1, 1, 1))
 
     # ---- the gradient forward
+    no_ce = cfg.decoder_prob <= 0.0
     net_out, logits = model(z_mixed, sc_half, text, t_mixed, text_emb=text_emb,
-                            self_cond_cfg_scale=sc_cfg, decoder_step_active=d)
+                            self_cond_cfg_scale=sc_cfg,
+                            decoder_step_active=None if no_ce else d)
 
     v_pred, _ = net_to_v(net_out, z, t)
     l2 = ((v_pred - v_final) ** 2).mean(-1)
-    ce = F.cross_entropy(logits.float().reshape(-1, logits.shape[-1]),
-                         code.reshape(-1), reduction="none").view(B, L)
+    if no_ce:
+        ce = torch.zeros_like(l2)
+    else:
+        ce = F.cross_entropy(logits.float().reshape(-1, logits.shape[-1]),
+                             code.reshape(-1), reduction="none").view(B, L)
 
     m_ce = loss_mask * d.view(-1, 1)
     m_l2 = loss_mask * (1 - d).view(-1, 1)
@@ -319,7 +325,8 @@ def train_step(model, ema, batch, cfg, opt, device, scaler=None):
             pe.mul_(cfg.ema_decay).add_(p.detach(), alpha=1 - cfg.ema_decay)
 
     with torch.no_grad():
-        acc = ((logits.argmax(-1) == code).float() * m_ce).sum() / m_ce.sum().clamp(min=1)
+        acc = (torch.zeros((), device=device) if no_ce else
+               ((logits.argmax(-1) == code).float() * m_ce).sum() / m_ce.sum().clamp(min=1))
     return {
         "loss": loss.item(),
         "l2": ((l2 * m_l2).sum() / m_l2.sum().clamp(min=1)).item(),
@@ -348,7 +355,7 @@ def path_a_curve(codebook, loader, cfg, device, sigmas, max_batches=4):
     for bi, b in enumerate(loader):
         if bi >= max_batches:
             break
-        x0 = b["latent"].to(device) / cfg.latent_std
+        x0 = (b["latent"].to(device) - cfg.latent_mean) / cfg.latent_std
         m = (b["valid"].to(device) * (1 - b["prompt"].to(device)))
         code = b["code"].to(device)
         flat = x0.reshape(-1, x0.shape[-1]); mf = m.reshape(-1); cf = code.reshape(-1)
@@ -372,7 +379,7 @@ def path_b_curve(model, loader, cfg, device, sigmas, max_batches=4):
     for bi, b in enumerate(loader):
         if bi >= max_batches:
             break
-        x0 = b["latent"].to(device) / cfg.latent_std
+        x0 = (b["latent"].to(device) - cfg.latent_mean) / cfg.latent_std
         code = b["code"].to(device); text = b["text"].to(device)
         m = (b["valid"].to(device) * (1 - b["prompt"].to(device)))
         B = x0.shape[0]
@@ -420,7 +427,7 @@ def convergence_metrics(model, loader, cfg, device, n_steps=32, cfg_scale=2.0,
         for bi, b in enumerate(loader):
             if bi >= max_batches:
                 break
-            x0 = b["latent"].to(device) / cfg.latent_std
+            x0 = (b["latent"].to(device) - cfg.latent_mean) / cfg.latent_std
             text = b["text"].to(device); prompt = b["prompt"].to(device)
             m = b["valid"].to(device) * (1 - prompt)
             B = x0.shape[0]
@@ -441,7 +448,7 @@ def convergence_metrics(model, loader, cfg, device, n_steps=32, cfg_scale=2.0,
 
     # --- rollout, recording x0_hat error at the same probe points
     b = next(iter(loader))
-    x0 = b["latent"].to(device) / cfg.latent_std
+    x0 = (b["latent"].to(device) - cfg.latent_mean) / cfg.latent_std
     text = b["text"].to(device); prompt = b["prompt"].to(device)
     m = b["valid"].to(device) * (1 - prompt)
     B = x0.shape[0]
@@ -477,6 +484,9 @@ def convergence_metrics(model, loader, cfg, device, n_steps=32, cfg_scale=2.0,
     out["ref/x0_norm"] = nrm(x0)
     out["rollout/z_err_vs_trivial"] = nrm(z - x0) - nrm(x0)
     out["rollout/beats_trivial"] = float(nrm(z - x0) < nrm(x0))
+    # dimension-free: trivial is 1.0 for any target, so codec(512) and mel(100)
+    # can be read on one axis
+    out["rollout/z_err_ratio"] = nrm(z - x0) / max(nrm(x0), 1e-9)
     for tv in probe_ts:
         out[f"tf/x0hat_err_t{tv}"] = tf_err[tv]
         out[f"sharpness/ratio_t{tv}"] = sharp[tv]
@@ -492,7 +502,7 @@ def sample(model, batch, cfg, device, n_steps=32, cfg_scale=2.0, sc_cfg=1.0,
            schedule="logit_normal", sampler="ode", sde_gamma=1.5):
     """ODE rollout then one decode forward. Returns predicted code ids."""
     model.eval()
-    x0 = batch["latent"].to(device) / cfg.latent_std
+    x0 = (batch["latent"].to(device) - cfg.latent_mean) / cfg.latent_std
     text = batch["text"].to(device)
     prompt = batch["prompt"].to(device)
     B, L, D = x0.shape
@@ -558,6 +568,7 @@ def eval_sampled(model, loader, cfg, device, max_batches=2, **kw):
 # ============================================================ main
 @dataclass
 class Cfg:
+    latent_mean: float = 0.0
     latent_std: float = 0.26409
     denoiser_p_mean: float = -1.5
     denoiser_p_std: float = 0.8
@@ -576,6 +587,11 @@ class Cfg:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--cache", default=os.path.join(HERE, "cache"))
+    ap.add_argument("--dim", type=int, default=0,
+                    help="feature dim; 0 = take it from the cache index")
+    ap.add_argument("--no_ce", action="store_true",
+                    help="mel target: there are no discrete codes, so the CE branch "
+                         "is switched off entirely and decoder_prob is forced to 0")
     ap.add_argument("--out", default=os.path.join(HERE, "runs", "test1"))
     ap.add_argument("--model", default="ELF-T")
     ap.add_argument("--max_length", type=int, default=400)
@@ -628,7 +644,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     cfg = Cfg()
     cfg.ema_decay = args.ema_decay
-    cfg.decoder_prob = args.decoder_prob
+    cfg.decoder_prob = 0.0 if args.no_ce else args.decoder_prob
     cfg.decoder_noise_scale = args.decoder_noise_scale
     if args.no_text:
         cfg.label_drop_prob = 1.0            # text block always zero
@@ -651,6 +667,12 @@ def main():
     val_ds = LJCache(args.cache, "val", seed=args.seed)
     test_ds = LJCache(args.cache, "test", seed=args.seed)
     meta = train_ds.meta
+    if "latent_std" in meta:
+        cfg.latent_std = float(meta["latent_std"])
+        cfg.latent_mean = float(meta.get("latent_mean", 0.0))
+        log(f"from cache: target={meta.get('target','codec')} dim={meta.get('dim',512)} "
+            f"latent_mean={cfg.latent_mean:+.5f} latent_std={cfg.latent_std:.5f} "
+            f"frame_rate={meta.get('frame_rate',40):.2f} Hz")
     log(f"splits: train {len(train_ds)} / val {len(val_ds)} / test {len(test_ds)}")
     log(f"char vocab {meta['char_vocab_size']} | audio vocab {meta['audio_vocab_size']}")
     log(f"frames/char {meta['frames_per_char']:.2f}")
@@ -660,9 +682,11 @@ def main():
         val_ds = train_ds                      # memorisation check
         log(f"OVERFIT mode: {len(train_ds)} clips, val == train")
 
+    DIM = args.dim or meta.get("dim", 512)
     coll = make_collate(args.max_length, (args.prompt_lo, args.prompt_hi), args.seed,
-                        crop_frames=args.crop_frames)
-    coll_eval = make_collate(args.max_length, (0.3, 0.3), args.seed, fixed_prompt=0.3)
+                        crop_frames=args.crop_frames, dim=DIM)
+    coll_eval = make_collate(args.max_length, (0.3, 0.3), args.seed, fixed_prompt=0.3,
+                             dim=DIM)
     dl = DataLoader(train_ds, batch_size=args.batch, shuffle=True, drop_last=True,
                     num_workers=args.workers, collate_fn=coll, pin_memory=True,
                     persistent_workers=args.workers > 0)
@@ -670,13 +694,16 @@ def main():
                         num_workers=0, collate_fn=coll_eval)
     # prompt = 0: no ground-truth audio at all. This is PURE text-to-speech, and it is
     # in-distribution because training draws prompt_frac ~ U(0.0, 0.3).
-    coll_p0 = make_collate(args.max_length, (0.0, 0.0), args.seed, fixed_prompt=0.0)
+    coll_p0 = make_collate(args.max_length, (0.0, 0.0), args.seed, fixed_prompt=0.0,
+                            dim=DIM)
     dl_val_p0 = DataLoader(val_ds, batch_size=args.batch, shuffle=False,
                            num_workers=0, collate_fn=coll_p0)
 
-    codebook = load_codebook(args.codec_ckpt, device)
+    # a codec codebook only exists when the target IS codec codes
+    has_codebook = (not args.no_ce) and meta.get("target", "codec") == "codec"
+    codebook = load_codebook(args.codec_ckpt, device) if has_codebook else None
     model = ELFTTS(args.model, meta["char_vocab_size"], meta["audio_vocab_size"],
-                   dim=512, max_length=args.max_length, cb_skip=args.cb_skip,
+                   dim=DIM, max_length=args.max_length, cb_skip=args.cb_skip,
                    text_norm=not args.no_text_norm).to(device)
     n_par = sum(p.numel() for p in model.parameters())
     n_elf = sum(p.numel() for p in model.elf.parameters())
@@ -686,12 +713,14 @@ def main():
     if args.elf_init:
         load_elf_init(model, args.elf_init)
     ema = ELFTTS(args.model, meta["char_vocab_size"], meta["audio_vocab_size"],
-                 dim=512, max_length=args.max_length, cb_skip=args.cb_skip,
+                 dim=DIM, max_length=args.max_length, cb_skip=args.cb_skip,
                  text_norm=not args.no_text_norm).to(device)
-    model.set_codebook(codebook, cfg.latent_std, init_unembed=args.init_unembed)
+    if has_codebook:
+        model.set_codebook(codebook, cfg.latent_std, init_unembed=args.init_unembed)
     ema.load_state_dict(model.state_dict())
-    ema.set_codebook(codebook, cfg.latent_std)
-    log(f"codebook wired | cb_skip={args.cb_skip} | init_unembed={args.init_unembed}")
+    if has_codebook:
+        ema.set_codebook(codebook, cfg.latent_std)
+        log(f"codebook wired | cb_skip={args.cb_skip} | init_unembed={args.init_unembed}")
     for p in ema.parameters():
         p.requires_grad_(False)
 
@@ -701,9 +730,13 @@ def main():
 
     sigmas = [0.0, 0.01, 0.02, 0.05, 0.075, 0.10, 0.15, 0.20, 0.30, 0.50, 0.75, 1.00]
     sig_half = sigmas.index(0.50)
-    pa = path_a_curve(codebook, dl_val, cfg, device, sigmas)
-    log("path A (nearest-codebook) on the eval batches: " +
-        " ".join(f"{s:.2f}:{v*100:.1f}%" for s, v in zip(sigmas, pa)))
+    if has_codebook:
+        pa = path_a_curve(codebook, dl_val, cfg, device, sigmas)
+        log("path A (nearest-codebook) on the eval batches: " +
+            " ".join(f"{s:.2f}:{v*100:.1f}%" for s, v in zip(sigmas, pa)))
+    else:
+        pa = [float("nan")] * len(sigmas)
+        log("no codec codebook on this target, so path A / path B are not defined")
     hist = []
     it = iter(dl)
     t0 = time.time()
@@ -728,7 +761,8 @@ def main():
         if step % args.eval_every == 0 or step == args.steps:
             rec = {"step": step, "path_sigmas": sigmas, "path_a_survival": pa}
             for tag, net in (("raw", model), ("ema", ema)):
-                pb = path_b_curve(net, dl_val, cfg, device, sigmas)
+                pb = ([float("nan")] * len(sigmas) if not has_codebook
+                      else path_b_curve(net, dl_val, cfg, device, sigmas))
                 rec[f"path_b_survival_{tag}"] = pb
                 ret_a = pa[sig_half] / max(pa[0], 1e-9)
                 ret_b = pb[sig_half] / max(pb[0], 1e-9)
@@ -745,6 +779,7 @@ def main():
             cm = {}
             for tag, net in (("raw", model), ("ema", ema)):
                 for reg, loader in (("p30", dl_val), ("p0", dl_val_p0)):
+                    pass_ce = not has_codebook
                     c = convergence_metrics(net, loader, cfg, device,
                                             schedule=args.sample_schedule)
                     rec[f"conv_{tag}_{reg}"] = c
@@ -753,9 +788,11 @@ def main():
                                         cfg_scale=2.0, schedule=args.sample_schedule)
                     rec[f"sampled_acc_{tag}_{reg}"] = a
                     cm[f"sampled/code_acc/{reg}/{tag}"] = a
+                    acc_s = "  n/a  " if not has_codebook else f"{a*100:5.2f}%"
                     log(f"  [conv @ {step} | {tag} | {reg}] "
-                        f"code acc {a*100:5.2f}% | rollout ||z-x0|| {c['rollout/z_err']:6.2f} "
-                        f"({c['rollout/z_err_vs_trivial']:+.2f} vs trivial {c['ref/x0_norm']:.2f}) "
+                        f"code acc {acc_s} | rollout ||z-x0|| {c['rollout/z_err']:6.2f} "
+                        f"(ratio {c['rollout/z_err_ratio']:.3f}, {c['rollout/z_err_vs_trivial']:+.2f} "
+                        f"vs trivial {c['ref/x0_norm']:.2f}) "
                         f"| sharpness t0.05 {c['sharpness/ratio_t0.05']:.3f} "
                         f"| exposure gap t0.7 {c.get('exposure_gap/t0.7', float('nan')):5.1f}x "
                         f"| text sens t0.05 {c['text_sens/rel_t0.05']*100:4.1f}%")

@@ -26,3 +26,23 @@ __pycache__/
 *.pyc
 *.egg-info/
 .ipynb_checkpoints/
+
+# preprocessed caches of the unified runs (LJSpeech, LibriSpeech 960 h,
+# Whisper and x-vector features): tens to hundreds of GB each
+cache_*/
+# scratch / temp dirs
+tmp/
+tmp*/
+# the abandoned LibriSpeech + LibriTTS scaffold
+experiments/
+# hand backups taken before edits
+*.pre_*
+*.bak
+*.fixed
+*_old.html
+# pages and data with embedded audio, regenerate with their build scripts
+listen_why.json
+both_directions.html
+pipeline_atlas.html
+unified_reference.html
+report_v1.html

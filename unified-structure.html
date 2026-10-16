@@ -1,0 +1,736 @@
+<title>Two Channels, One Flow</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+  :root{
+    color-scheme: light;
+    --paper:#f3f5f7; --card:#fbfbfc; --sunk:#eceff2;
+    --ink:#15181e; --ink-2:#4a515c; --ink-3:#79818d;
+    --rule:#d6dbe1; --rule-2:#e6e9ee;
+    --voice:#12707b; --voice-soft:#dbedef; --voice-edge:#7fbcc3;
+    --text-ch:#965909; --text-soft:#f4e6d2; --text-edge:#d4a768;
+    --elf:#4f5865; --elf-soft:#e3e6ea;
+    --ok:#1a6a44; --bad:#9c2a20; --bad-soft:#f7e3e0;
+    --sans:"IBM Plex Sans Condensed","Helvetica Neue",Arial,sans-serif;
+    --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+    --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+    --measure:66ch;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --paper:#10131a; --card:#171b23; --sunk:#1c212a;
+    --ink:#e6eaf0; --ink-2:#a5aeba; --ink-3:#6f7883;
+    --rule:#2a313b; --rule-2:#212731;
+    --voice:#46c0cc; --voice-soft:#103036; --voice-edge:#2a6e77;
+    --text-ch:#deab5e; --text-soft:#352616; --text-edge:#7d5c2a;
+    --elf:#98a2ae; --elf-soft:#232933;
+    --ok:#56c48c; --bad:#e8857a; --bad-soft:#331c19;
+  }}
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --paper:#10131a; --card:#171b23; --sunk:#1c212a;
+    --ink:#e6eaf0; --ink-2:#a5aeba; --ink-3:#6f7883;
+    --rule:#2a313b; --rule-2:#212731;
+    --voice:#46c0cc; --voice-soft:#103036; --voice-edge:#2a6e77;
+    --text-ch:#deab5e; --text-soft:#352616; --text-edge:#7d5c2a;
+    --elf:#98a2ae; --elf-soft:#232933;
+    --ok:#56c48c; --bad:#e8857a; --bad-soft:#331c19;
+  }
+
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:var(--serif); font-size:16.5px; line-height:1.62;
+    padding-inline:20px; padding-block:0;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1000px; margin:0 auto; padding-block:46px 72px;}
+  .m{max-width:var(--measure);}
+
+  h1{
+    font-family:var(--sans); font-weight:700; font-size:clamp(30px,5.4vw,46px);
+    line-height:1.05; letter-spacing:-.015em; margin:0 0 14px; text-wrap:balance;
+  }
+  h2{
+    font-family:var(--sans); font-weight:600; font-size:clamp(21px,3vw,26px);
+    line-height:1.2; letter-spacing:-.008em; margin:0 0 10px; text-wrap:balance;
+  }
+  h3{
+    font-family:var(--sans); font-weight:600; font-size:17px;
+    margin:0 0 6px; letter-spacing:-.004em;
+  }
+  p{margin:0 0 14px;}
+  a{color:var(--voice);}
+
+  .eyebrow{
+    font-family:var(--mono); font-size:11px; font-weight:500;
+    letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3);
+    margin:0 0 7px;
+  }
+  .lede{font-size:19px; line-height:1.55; color:var(--ink-2);}
+  code,.mono{font-family:var(--mono); font-size:.885em;}
+  code{background:var(--sunk); padding:.1em .34em; border-radius:3px;}
+
+  section{
+    margin-top:44px; padding-top:26px; border-top:1px solid var(--rule);
+  }
+  section:first-of-type{border-top:0; padding-top:0;}
+
+  /* verdict strip */
+  .verdict{
+    display:flex; flex-wrap:wrap; gap:0; margin:26px 0 0;
+    border:1px solid var(--rule); border-radius:5px; overflow:hidden;
+    background:var(--card);
+  }
+  .verdict > div{
+    flex:1 1 170px; padding:15px 17px;
+    border-left:1px solid var(--rule-2);
+  }
+  .verdict > div:first-child{border-left:0;}
+  .verdict dt{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.11em;
+    text-transform:uppercase; color:var(--ink-3); margin:0 0 5px;
+  }
+  .verdict dd{
+    margin:0; font-family:var(--sans); font-weight:600; font-size:25px;
+    line-height:1.1; font-variant-numeric:tabular-nums;
+  }
+  .verdict dd small{
+    display:block; font-family:var(--serif); font-weight:400;
+    font-size:13px; line-height:1.4; color:var(--ink-2); margin-top:4px;
+  }
+
+  /* two-column ledger */
+  .ledger{display:grid; gap:18px; grid-template-columns:1fr; margin-top:22px;}
+  @media (min-width:760px){ .ledger{grid-template-columns:1fr 1fr;} }
+  .ledger > div{
+    background:var(--card); border:1px solid var(--rule);
+    border-radius:5px; padding:18px 19px 6px;
+  }
+  .ledger h3{display:flex; align-items:baseline; gap:9px;}
+  .ledger h3 .tag{
+    font-family:var(--mono); font-size:10px; letter-spacing:.1em;
+    text-transform:uppercase; padding:2px 6px; border-radius:3px;
+    font-weight:500;
+  }
+  .tag-elf{background:var(--elf-soft); color:var(--elf);}
+  .tag-new{background:var(--voice-soft); color:var(--voice);}
+  .ledger ul{margin:10px 0 14px; padding-left:0; list-style:none;}
+  .ledger li{
+    padding:7px 0; border-top:1px solid var(--rule-2);
+    font-size:15px; line-height:1.5;
+  }
+  .ledger li:first-child{border-top:0;}
+  .ledger li b{font-family:var(--sans); font-weight:600;}
+  .ledger li span{display:block; color:var(--ink-2); font-size:13.5px;}
+
+  /* figures */
+  figure{margin:26px 0 0;}
+  .fig-scroll{overflow-x:auto; margin-inline:-4px; padding-inline:4px;}
+  svg.d{display:block; width:100%; min-width:620px; max-width:100%; height:auto; color:var(--ink);}
+  figcaption{
+    font-size:14px; line-height:1.5; color:var(--ink-2);
+    margin-top:11px; max-width:var(--measure);
+  }
+  figcaption b{font-family:var(--sans); color:var(--ink);}
+
+  /* tables */
+  .t-scroll{overflow-x:auto; margin-top:20px;}
+  table{border-collapse:collapse; width:100%; min-width:540px; font-size:14.5px;}
+  th,td{
+    text-align:left; padding:8px 13px 8px 0;
+    border-bottom:1px solid var(--rule-2); vertical-align:top;
+  }
+  th{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--ink-3); font-weight:500;
+    border-bottom:1px solid var(--rule);
+  }
+  td.n{font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap;}
+  tr.worse td.n{color:var(--bad);}
+  .pill{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.06em;
+    padding:2px 7px; border-radius:10px; white-space:nowrap; font-weight:500;
+  }
+  .pill-ok{background:var(--voice-soft); color:var(--ok);}
+  .pill-bad{background:var(--bad-soft); color:var(--bad);}
+
+  /* equation / code block */
+  pre{
+    font-family:var(--mono); font-size:13px; line-height:1.65;
+    background:var(--card); border:1px solid var(--rule); border-radius:5px;
+    padding:14px 16px; overflow-x:auto; margin:18px 0 0; color:var(--ink);
+  }
+  pre .c{color:var(--ink-3);}
+
+  .note{
+    border-left:2px solid var(--text-ch); padding:2px 0 2px 15px;
+    margin:20px 0 0; max-width:var(--measure);
+    font-size:15.5px; color:var(--ink-2);
+  }
+  .note b{color:var(--ink); font-family:var(--sans);}
+
+  .foot{
+    margin-top:50px; padding-top:20px; border-top:1px solid var(--rule);
+    font-family:var(--mono); font-size:11.5px; color:var(--ink-3);
+    letter-spacing:.02em; line-height:1.7;
+  }
+</style>
+
+<div class="wrap">
+
+<section>
+  <p class="eyebrow">Unified TTS + S2T</p>
+  <h1 class="m">两个通道，一条 flow</h1>
+  <p class="lede m">
+    这是 ELF 的 pipeline 本身，不只是借了它的 transformer。
+    flow matching 的公式、时间分布、两分支 loss、late discretization 的 decode head、
+    自条件 CFG、prefix token、RoPE、以至 <code>config.yml</code> 里的全部超参，
+    都没有替换。改动集中在把语音作为第二个通道接进去。
+  </p>
+
+  <dl class="verdict">
+    <div>
+      <dt>来自 ELF 权重</dt>
+      <dd>99.58%<small>104,579,940 / 105.02M 参数</small></dd>
+    </div>
+    <div>
+      <dt>新增参数</dt>
+      <dd>0.42%<small>442,980，其中 36.5 万是加宽输入投影的新列</small></dd>
+    </div>
+    <div>
+      <dt>ELF 模型代码改动</dt>
+      <dd>37 行<small>共 283 行，三处：输入宽度、task token、取 prefix 偏移</small></dd>
+    </div>
+    <div>
+      <dt>生成是否可用</dt>
+      <dd style="color:var(--bad)">还不行<small>teacher-forced 在学，rollout 不行。下方「现状」有数字。</small></dd>
+    </div>
+  </dl>
+</section>
+
+<section>
+  <p class="eyebrow">机制</p>
+  <h2 class="m">同一行里放 mel 帧和 text token，谁加噪就谁是目标</h2>
+  <p class="m">
+    一行序列把语音和文本并排放着，两者都不被重采样到对方的帧率，
+    所以不需要任何对齐假设。两个任务是<strong>同一套计算</strong>，
+    只把「干净」和「加噪」的角色对调 —— 这就是单一目标函数能成立的原因。
+  </p>
+
+  <figure>
+    <div class="fig-scroll">
+      <svg class="d" viewBox="0 0 880 352" role="img"
+           aria-label="一行序列由 464 个 mel 帧和 48 个 text token 并排组成。TTS 时 voice 通道在 mel 区加噪并作为 flow 的目标、text 通道在 token 区保持干净作为条件；S2T 时两者对调。cond 通道只在 TTS 时携带升采样的字符。">
+        <defs>
+          <pattern id="hv" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="7" height="7" fill="var(--voice-soft)"/>
+            <line x1="0" y1="0" x2="0" y2="7" stroke="var(--voice)" stroke-width="2.1"/>
+          </pattern>
+          <pattern id="ht" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="7" height="7" fill="var(--text-soft)"/>
+            <line x1="0" y1="0" x2="0" y2="7" stroke="var(--text-ch)" stroke-width="2.1"/>
+          </pattern>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <!-- region headers -->
+        <text x="152" y="15" font-family="var(--mono)" font-size="11.5"
+              fill="currentColor" opacity=".62">mel 帧 × 464</text>
+        <text x="650" y="15" font-family="var(--mono)" font-size="11.5"
+              fill="currentColor" opacity=".62">text token × 48</text>
+        <line x1="150" y1="22" x2="638" y2="22" stroke="currentColor" opacity=".2"/>
+        <line x1="648" y1="22" x2="862" y2="22" stroke="currentColor" opacity=".2"/>
+
+        <!-- ============ TTS panel ============ -->
+        <text x="0" y="48" font-family="var(--sans)" font-size="15" font-weight="700"
+              fill="currentColor">TTS</text>
+        <text x="42" y="48" font-family="var(--mono)" font-size="11"
+              fill="var(--voice)">flow 在 voice 通道</text>
+
+        <text x="140" y="79" text-anchor="end" font-family="var(--mono)" font-size="11.5"
+              fill="var(--voice)">z_V · 100</text>
+        <rect x="150" y="60" width="488" height="28" rx="3" fill="url(#hv)"
+              stroke="var(--voice)" stroke-width="2"/>
+        <text x="394" y="79" text-anchor="middle" font-family="var(--mono)" font-size="11.5"
+              fill="currentColor">加噪的 mel — 目标</text>
+        <rect x="648" y="60" width="214" height="28" rx="3" fill="none"
+              stroke="currentColor" stroke-opacity=".3" stroke-dasharray="3 3"/>
+        <text x="755" y="79" text-anchor="middle" font-family="var(--mono)" font-size="11"
+              fill="currentColor" opacity=".45">0</text>
+
+        <text x="140" y="113" text-anchor="end" font-family="var(--mono)" font-size="11.5"
+              fill="var(--text-ch)">z_T · 512</text>
+        <rect x="150" y="94" width="488" height="28" rx="3" fill="none"
+              stroke="currentColor" stroke-opacity=".3" stroke-dasharray="3 3"/>
+        <text x="394" y="113" text-anchor="middle" font-family="var(--mono)" font-size="11"
+              fill="currentColor" opacity=".45">0</text>
+        <rect x="648" y="94" width="214" height="28" rx="3" fill="var(--text-soft)"
+              stroke="var(--text-edge)" stroke-width="1.5"/>
+        <text x="755" y="113" text-anchor="middle" font-family="var(--mono)" font-size="11.5"
+              fill="currentColor">干净 T5 — 条件</text>
+
+        <text x="140" y="147" text-anchor="end" font-family="var(--mono)" font-size="11.5"
+              fill="currentColor" opacity=".7">cond · 512</text>
+        <rect x="150" y="128" width="488" height="28" rx="3" fill="var(--text-soft)"
+              stroke="var(--text-edge)" stroke-width="1.5"/>
+        <text x="394" y="147" text-anchor="middle" font-family="var(--mono)" font-size="11.5"
+              fill="currentColor">升采样的 char — 逐帧对齐信号</text>
+        <rect x="648" y="128" width="214" height="28" rx="3" fill="none"
+              stroke="currentColor" stroke-opacity=".3" stroke-dasharray="3 3"/>
+        <text x="755" y="147" text-anchor="middle" font-family="var(--mono)" font-size="11"
+              fill="currentColor" opacity=".45">0</text>
+
+        <!-- swap marker -->
+        <g color="currentColor" opacity=".55">
+          <line x1="394" y1="170" x2="394" y2="196" stroke="currentColor"
+                stroke-width="1.3" marker-end="url(#ar)"/>
+          <line x1="755" y1="170" x2="755" y2="196" stroke="currentColor"
+                stroke-width="1.3" marker-end="url(#ar)"/>
+        </g>
+        <text x="440" y="187" font-family="var(--mono)" font-size="11"
+              fill="currentColor" opacity=".6">干净 / 加噪 对调</text>
+
+        <!-- ============ S2T panel ============ -->
+        <text x="0" y="226" font-family="var(--sans)" font-size="15" font-weight="700"
+              fill="currentColor">S2T</text>
+        <text x="46" y="226" font-family="var(--mono)" font-size="11"
+              fill="var(--text-ch)">flow 在 text 通道</text>
+
+        <text x="140" y="257" text-anchor="end" font-family="var(--mono)" font-size="11.5"
+              fill="var(--voice)">z_V · 100</text>
+        <rect x="150" y="238" width="488" height="28" rx="3" fill="var(--voice-soft)"
+              stroke="var(--voice-edge)" stroke-width="1.5"/>
+        <text x="394" y="257" text-anchor="middle" font-family="var(--mono)" font-size="11.5"
+              fill="currentColor">干净 mel — 条件</text>
+        <rect x="648" y="238" width="214" height="28" rx="3" fill="none"
+              stroke="currentColor" stroke-opacity=".3" stroke-dasharray="3 3"/>
+        <text x="755" y="257" text-anchor="middle" font-family="var(--mono)" font-size="11"
+              fill="currentColor" opacity=".45">0</text>
+
+        <text x="140" y="291" text-anchor="end" font-family="var(--mono)" font-size="11.5"
+              fill="var(--text-ch)">z_T · 512</text>
+        <rect x="150" y="272" width="488" height="28" rx="3" fill="none"
+              stroke="currentColor" stroke-opacity=".3" stroke-dasharray="3 3"/>
+        <text x="394" y="291" text-anchor="middle" font-family="var(--mono)" font-size="11"
+              fill="currentColor" opacity=".45">0</text>
+        <rect x="648" y="272" width="214" height="28" rx="3" fill="url(#ht)"
+              stroke="var(--text-ch)" stroke-width="2"/>
+        <text x="755" y="291" text-anchor="middle" font-family="var(--mono)" font-size="11.5"
+              fill="currentColor">加噪 T5 — 目标</text>
+
+        <text x="140" y="325" text-anchor="end" font-family="var(--mono)" font-size="11.5"
+              fill="currentColor" opacity=".7">cond · 512</text>
+        <rect x="150" y="306" width="712" height="28" rx="3" fill="none"
+              stroke="currentColor" stroke-opacity=".3" stroke-dasharray="3 3"/>
+        <text x="506" y="325" text-anchor="middle" font-family="var(--mono)" font-size="11"
+              fill="currentColor" opacity=".45">0 — 还不知道文本，没有对齐信号可给</text>
+      </svg>
+    </div>
+    <figcaption>
+      <b>斜纹 = 加噪、是 flow 的目标；实底 = 干净、是条件；虚线 = 该位置上这个通道不存在。</b>
+      两个任务之间唯一变的是这件事。干净与加噪的切换完全由已有的 prompt mask 表达
+      —— <code>prompt = 1</code> 的位置由 <code>restore()</code> 钉在干净值上、并被 loss mask 排除，
+      所以没有引入任何新的条件注入机制。多说话人数据上 TTS 还会把开头若干 mel 帧也置为
+      prompt，作为 voice prompt；不给的话 L2 会回归到说话人均值。
+    </figcaption>
+  </figure>
+</section>
+
+<section>
+  <p class="eyebrow">对 ELF 的改动</p>
+  <h2 class="m">输入从 1024 列加宽到 1736 列</h2>
+  <p class="m">
+    ELF 原本把若干个整块的 <code>text_encoder_dim</code> 拼起来，所以输入宽度总是它的整数倍。
+    语音通道是 100 维的原始 mel（没有 encoder），宽度不再是整数倍，因此改成显式给定。
+    通道顺序刻意把 ELF 的两块放在最前面，于是预训练权重原样落进前 1024 列。
+  </p>
+
+  <figure>
+    <div class="fig-scroll">
+      <svg class="d" viewBox="0 0 880 134" role="img"
+           aria-label="输入投影的 1736 列由 z_T 512 列、sc_T 512 列、z_V 100 列、sc_V 100 列、cond 512 列组成。前 1024 列来自 ELF 预训练权重，其后的 712 列是新增的。">
+        <rect x="30" y="38" width="242" height="34" fill="var(--elf-soft)"
+              stroke="var(--elf)" stroke-width="1.4"/>
+        <text x="151" y="60" text-anchor="middle" font-family="var(--mono)" font-size="11.5"
+              fill="currentColor">z_T · 512</text>
+        <rect x="272" y="38" width="242" height="34" fill="var(--elf-soft)"
+              stroke="var(--elf)" stroke-width="1.4"/>
+        <text x="393" y="60" text-anchor="middle" font-family="var(--mono)" font-size="11.5"
+              fill="currentColor">sc_T · 512</text>
+        <rect x="514" y="38" width="47" height="34" fill="var(--voice-soft)"
+              stroke="var(--voice)" stroke-width="1.4"/>
+        <rect x="561" y="38" width="47" height="34" fill="var(--voice-soft)"
+              stroke="var(--voice)" stroke-width="1.4"/>
+        <rect x="608" y="38" width="242" height="34" fill="var(--text-soft)"
+              stroke="var(--text-ch)" stroke-width="1.4"/>
+        <text x="729" y="60" text-anchor="middle" font-family="var(--mono)" font-size="11.5"
+              fill="currentColor">cond · 512</text>
+
+        <text x="537" y="26" text-anchor="middle" font-family="var(--mono)" font-size="10.5"
+              fill="var(--voice)">z_V 100</text>
+        <text x="584" y="26" text-anchor="middle" font-family="var(--mono)" font-size="10.5"
+              fill="var(--voice)">sc_V 100</text>
+
+        <!-- brackets -->
+        <path d="M 30 82 L 30 90 L 514 90 L 514 82" fill="none"
+              stroke="var(--elf)" stroke-width="1.3"/>
+        <text x="272" y="108" text-anchor="middle" font-family="var(--mono)" font-size="11.5"
+              fill="var(--elf)">ELF 预训练的 1024 列，原样拷入</text>
+        <path d="M 514 82 L 514 90 L 850 90 L 850 82" fill="none"
+              stroke="currentColor" stroke-opacity=".45" stroke-width="1.3"/>
+        <text x="682" y="108" text-anchor="middle" font-family="var(--mono)" font-size="11.5"
+              fill="currentColor" opacity=".7">新增 712 列</text>
+        <text x="682" y="124" text-anchor="middle" font-family="var(--mono)" font-size="10.5"
+              fill="currentColor" opacity=".5">init 时置零 → 模型从 ELF 的行为出发</text>
+      </svg>
+    </div>
+    <figcaption>
+      <b>新列置零的代价后来被实验证伪了一半。</b>
+      我原以为 cond 块被置零是 TTS 学不到文本的瓶颈，
+      于是做了一个把新列初始化到 z_T 的 25% 尺度的对照 —— 两跑在 step 2000 的 rollout
+      几乎完全一样（TTS 0.8898 对 0.8546），这个推断是错的。
+    </figcaption>
+  </figure>
+</section>
+
+<section>
+  <p class="eyebrow">一张账本</p>
+  <h2 class="m">哪些是 ELF 的，哪些是我加的</h2>
+
+  <div class="ledger">
+    <div>
+      <h3>原样沿用 <span class="tag tag-elf">ELF</span></h3>
+      <ul>
+        <li><b>flow matching 的公式</b>
+          <span><code>z = t·x₀ + (1−t)·ε·noise_scale</code>，<code>v = (x̂₀−z)/clamp(1−t, t_eps)</code></span></li>
+        <li><b>logit-normal 时间分布</b>
+          <span><code>t ~ sigmoid(𝒩(p_mean, p_std))</code>，p_mean −1.5、p_std 0.8</span></li>
+        <li><b>两分支 loss</b>
+          <span>逐行 Bernoulli(<code>decoder_prob</code>=0.2) 把该行路由到 decode head 的 CE 或 denoiser 的 L2，两者共用<strong>同一个分母</strong>，所以 0.2 就是 CE 的实际权重</span></li>
+        <li><b>late discretization 的 decode head</b>
+          <span><code>gelu(x·proj_kernel + b)·unembed_kernel + b</code>，词表 32100。与 denoiser 读同一份 <code>x</code></span></li>
+        <li><b>自条件 CFG</b>
+          <span>两次 no_grad forward 构造锐化后的速度目标：<code>guidance = (1 − 1/sc_cfg)(v_c − v_u)</code>，并以 0.5 的概率丢掉自条件</span></li>
+        <li><b>三组 prefix token</b>
+          <span>4 个 time、4 个 self-cond-cfg、4 个 model-mode（后者已被 decoder/denoiser 分支占用）</span></li>
+        <li><b>带 <code>num_empty_token</code> 的 RoPE</b>
+          <span>prefix 位置的旋转是恒等，真实位置恒为 0…L−1，与 prefix 数量无关</span></li>
+        <li><b>ELF-B 主干与权重</b>
+          <span>12 层 / 768 宽 / 12 头；<code>ELF-B-owt checkpoint_95085</code> 的 <code>ema_params1</code></span></li>
+        <li><b>文本 latent 空间</b>
+          <span>t5-small <strong>encoder</strong> 输出 ÷ <code>latent_std</code> 0.2</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>我加的 <span class="tag tag-new">新</span></h3>
+      <ul>
+        <li><b><code>input_width</code></b>
+          <span>1024 → 1736。放开「必须是 <code>text_encoder_dim</code> 整数倍」的硬编码</span></li>
+        <li><b><code>task_tokens</code> + <code>task_id</code></b>
+          <span>2 任务 × 4 token × 768 = <strong>6,144</strong> 参数，逐行按任务选取。写法照抄 <code>mode_tokens</code>，因为那组已经被 decoder/denoiser 占用、不能兼做任务标记</span></li>
+        <li><b><code>voice_out</code></b>
+          <span><code>Linear(512 → 100)</code>，<strong>51,300</strong> 参数。接在 ELF 预训练的 <code>final_layer</code>(768→512) 之后，是 denoiser 对语音通道的输出层</span></li>
+        <li><b><code>char_embed</code> + RMSNorm</b>
+          <span>40 × 512 = <strong>20,480</strong>。升采样后的字符，给 TTS 提供逐帧对齐信号；RMSNorm 把它和 z_T 放到同一量级</span></li>
+        <li><b>序列布局</b>
+          <span>mel 帧与 text token 并排放在一行，不互相重采样</span></li>
+        <li><b>角色对调</b>
+          <span>用已有的 prompt mask 表达，没有新机制</span></li>
+        <li><b>decode head 只在 S2T 行开</b>
+          <span><code>d = Bernoulli(0.2) × is_s2t</code>。TTS 是连续目标，没有 token 可预测</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>语音侧既没有 encoder 也没有 decoder。</b>
+    语音以原始 log-mel 进入它自己的 100 维通道：没有任何学出来的东西负责产生它，
+    也没有任何东西把它映射到 token —— 连续目标本来就没有 token 可预测。
+    文本两者都有，而且两者都是 ELF 自己的：进来时是冻结的 t5-small encoder 查表，
+    出去时是 ELF 预训练的 decode head。<strong>这个不对称是设计，不是遗漏</strong>
+    —— 它也正是 ELF 的 late discretization 真正用上的地方，因为 S2T 的目标确实是离散的。
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">一步训练</p>
+  <h2 class="m">三次 forward，两个分支，一个分母</h2>
+  <p class="m">
+    这一步完全是 ELF 的，只是在它的基础上多了按任务路由。
+    任务用<strong>逐样本 Bernoulli</strong> 混合，而不是交替步数：
+    交替会让任何一步的梯度只来自一个任务，在动量下两个任务部分互相抵消；
+    batch 内混合让每一步的梯度本身就是两者的平均。
+  </p>
+
+  <figure>
+    <div class="fig-scroll">
+      <svg class="d" viewBox="0 0 880 286" role="img"
+           aria-label="一步训练：两次 no_grad forward 构造自条件 CFG 锐化的速度目标，第三次带梯度的 forward 按 Bernoulli 路由到 decode head 的交叉熵或 denoiser 的 L2，两者除以同一个分母。">
+        <defs>
+          <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <!-- row 1: the two no_grad forwards -->
+        <text x="0" y="18" font-family="var(--mono)" font-size="10.5"
+              letter-spacing=".1em" fill="currentColor" opacity=".55">NO_GRAD — 构造目标</text>
+
+        <rect x="0" y="28" width="150" height="42" rx="4" fill="var(--card)"
+              stroke="var(--rule)" stroke-width="1.3"/>
+        <text x="75" y="46" text-anchor="middle" font-family="var(--mono)" font-size="11"
+              fill="currentColor">forward 1</text>
+        <text x="75" y="61" text-anchor="middle" font-family="var(--mono)" font-size="10"
+              fill="currentColor" opacity=".6">自条件 = 0 → x_u</text>
+
+        <line x1="150" y1="49" x2="196" y2="49" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#ar2)"/>
+
+        <rect x="200" y="28" width="150" height="42" rx="4" fill="var(--card)"
+              stroke="var(--rule)" stroke-width="1.3"/>
+        <text x="275" y="46" text-anchor="middle" font-family="var(--mono)" font-size="11"
+              fill="currentColor">forward 2</text>
+        <text x="275" y="61" text-anchor="middle" font-family="var(--mono)" font-size="10"
+              fill="currentColor" opacity=".6">自条件 = x_u → v_c</text>
+
+        <line x1="350" y1="49" x2="396" y2="49" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#ar2)"/>
+
+        <rect x="400" y="22" width="300" height="54" rx="4" fill="var(--sunk)"
+              stroke="var(--rule)" stroke-width="1.3"/>
+        <text x="550" y="42" text-anchor="middle" font-family="var(--mono)" font-size="11"
+              fill="currentColor">v_target = (x₀−z)/(1−t) + guidance</text>
+        <text x="550" y="60" text-anchor="middle" font-family="var(--mono)" font-size="10"
+              fill="currentColor" opacity=".62">guidance = (1 − 1/sc_cfg)(v_c − v_u)</text>
+        <text x="550" y="72" text-anchor="middle" font-family="var(--mono)" font-size="9.5"
+              fill="currentColor" opacity=".45">以 0.5 概率整项丢掉</text>
+
+        <!-- row 2: the gradient forward -->
+        <text x="0" y="112" font-family="var(--mono)" font-size="10.5"
+              letter-spacing=".1em" fill="currentColor" opacity=".55">带梯度</text>
+
+        <rect x="0" y="122" width="170" height="48" rx="4" fill="var(--card)"
+              stroke="currentColor" stroke-width="1.6"/>
+        <text x="85" y="141" text-anchor="middle" font-family="var(--mono)" font-size="11"
+              fill="currentColor">forward 3</text>
+        <text x="85" y="157" text-anchor="middle" font-family="var(--mono)" font-size="10"
+              fill="currentColor" opacity=".6">task_id 选 prefix</text>
+
+        <line x1="170" y1="146" x2="214" y2="146" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#ar2)"/>
+
+        <!-- the bernoulli router -->
+        <rect x="218" y="122" width="186" height="48" rx="4" fill="var(--sunk)"
+              stroke="var(--rule)" stroke-width="1.3"/>
+        <text x="311" y="141" text-anchor="middle" font-family="var(--mono)" font-size="10.5"
+              fill="currentColor">d = Bernoulli(0.2) × is_s2t</text>
+        <text x="311" y="157" text-anchor="middle" font-family="var(--mono)" font-size="9.5"
+              fill="currentColor" opacity=".55">逐行路由</text>
+
+        <!-- branch up: CE -->
+        <path d="M 404 136 L 440 136 L 440 108 L 470 108" fill="none"
+              stroke="var(--text-ch)" stroke-width="1.6" marker-end="url(#ar2)"
+              color="var(--text-ch)"/>
+        <rect x="474" y="88" width="238" height="40" rx="4" fill="var(--text-soft)"
+              stroke="var(--text-ch)" stroke-width="1.4"/>
+        <text x="593" y="104" text-anchor="middle" font-family="var(--mono)" font-size="10.5"
+              fill="currentColor">CE，decode head，t = 1</text>
+        <text x="593" y="119" text-anchor="middle" font-family="var(--mono)" font-size="9.5"
+              fill="currentColor" opacity=".62">只有 S2T 行会被路由到这里</text>
+
+        <!-- branch down: L2 -->
+        <path d="M 404 156 L 440 156 L 440 186 L 470 186" fill="none"
+              stroke="var(--voice)" stroke-width="1.6" marker-end="url(#ar2)"
+              color="var(--voice)"/>
+        <rect x="474" y="166" width="238" height="40" rx="4" fill="var(--voice-soft)"
+              stroke="var(--voice)" stroke-width="1.4"/>
+        <text x="593" y="182" text-anchor="middle" font-family="var(--mono)" font-size="10.5"
+              fill="currentColor">L2 on v，denoiser</text>
+        <text x="593" y="197" text-anchor="middle" font-family="var(--mono)" font-size="9.5"
+              fill="currentColor" opacity=".62">加噪的那个通道，按任务选</text>
+
+        <!-- join -->
+        <path d="M 712 108 L 760 108 L 760 147" fill="none" stroke="currentColor"
+              stroke-opacity=".5" stroke-width="1.3"/>
+        <path d="M 712 186 L 760 186 L 760 147" fill="none" stroke="currentColor"
+              stroke-opacity=".5" stroke-width="1.3"/>
+        <line x1="760" y1="147" x2="800" y2="147" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#ar2)"/>
+        <rect x="754" y="228" width="126" height="44" rx="4" fill="var(--card)"
+              stroke="currentColor" stroke-width="1.6"/>
+
+        <!-- single denominator callout -->
+        <path d="M 820 147 L 820 222" fill="none" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#ar2)"/>
+        <text x="817" y="250" text-anchor="middle" font-family="var(--mono)" font-size="10.5"
+              fill="currentColor">同一个分母</text>
+        <text x="817" y="264" text-anchor="middle" font-family="var(--mono)" font-size="9.5"
+              fill="currentColor" opacity=".6">loss_mask.sum()</text>
+
+        <text x="0" y="250" font-family="var(--mono)" font-size="10.5"
+              fill="currentColor" opacity=".7">loss = ( Σ CE·m_ce + Σ L2·m_l2 ) / Σ m</text>
+        <text x="0" y="266" font-family="var(--mono)" font-size="9.5"
+              fill="currentColor" opacity=".5">共用分母，所以 decoder_prob 就是 CE 的实际权重，而不是一个独立的 loss 项</text>
+      </svg>
+    </div>
+    <figcaption>
+      <b>两个任务只在 forward 3 的输入和 loss mask 上分叉，不在目标函数上分叉。</b>
+      UniVoice 需要 dual-attention masking，是因为它的 ASR 是自回归、TTS 是 flow matching，
+      两个目标函数硬拼在一起。ELF-S2T 已经是 continuous-target flow matching（CDLM），
+      所以这里两半用的是同一个目标、同一个双向注意力。
+    </figcaption>
+  </figure>
+</section>
+
+<section>
+  <p class="eyebrow">验证过的事实</p>
+  <h2 class="m">装得进去、路由是活的、decode head 开箱可用</h2>
+  <p class="m">
+    下面每一行都是跑出来的，不是推断。最后一行是最关键的一条：
+    ELF 的 latent 到底是 embedding 查表还是 encoder 输出，<code>config.yml</code>
+    没有说，而猜错会让 99.58% 的预训练权重变成废的。
+  </p>
+
+  <div class="t-scroll">
+    <table>
+      <thead><tr><th>检验</th><th>结果</th><th>怎么判定的</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>ELF 权重装载</td>
+          <td class="n">166 张量 / 99.1%</td>
+          <td>逐张量按形状匹配；<code>self_cond_proj</code> 部分拷入，712 新列置零</td>
+        </tr>
+        <tr>
+          <td>task token 是否生效</td>
+          <td class="n">输出变化 4.00%</td>
+          <td>同一输入只换 <code>task_id</code>，相对 L2 差异。为 0 则说明它没到主干</td>
+        </tr>
+        <tr>
+          <td>decode head 读 T5 latent</td>
+          <td class="n">93.1%</td>
+          <td>干净 latent 送进预训练 head，argmax 还原 token。随机是 0.0031%</td>
+        </tr>
+        <tr>
+          <td>条件通路是否打开（S2T）</td>
+          <td class="n">抹掉音频移动 131%</td>
+          <td>t=0.1 时把 <code>z_V</code> 置零，x̂₀ 的相对移动量</td>
+        </tr>
+        <tr>
+          <td>latent 是 encoder 输出还是查表</td>
+          <td class="n">encoder 输出 ÷ 0.2</td>
+          <td>让 ELF 无条件采样，它生成通顺英文、x₀ 的 std 稳定在 <strong>0.81–0.88</strong>；
+              t5 encoder 输出 std 0.1585 ÷ 0.2 = <strong>0.79</strong> 吻合，
+              而 embedding 查表的 std 是 17.26，差 100 倍</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">现状</p>
+  <h2 class="m">架构是通的，生成还不通</h2>
+  <p class="m">
+    必须分开说，因为训练日志看起来是正常的 —— teacher-forced 一直在变好。
+    而 rollout（真正要的那个）在变差。
+  </p>
+
+  <div class="t-scroll">
+    <table>
+      <thead>
+        <tr><th>step</th><th>TTS rollout</th><th>S2T rollout</th><th>S2T WER</th>
+            <th>token 准确率</th><th></th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="n">2000</td><td class="n">0.855</td><td class="n">1.759</td>
+          <td class="n">263.7%</td><td class="n">1.0%</td>
+          <td><span class="pill pill-bad">不可用</span></td>
+        </tr>
+        <tr class="worse">
+          <td class="n">4000</td><td class="n">1.078</td><td class="n">1.521</td>
+          <td class="n">117.6%</td><td class="n">0.9%</td>
+          <td><span class="pill pill-bad">不可用</span></td>
+        </tr>
+        <tr class="worse">
+          <td class="n">6000</td><td class="n">2.028</td><td class="n">1.474</td>
+          <td class="n">111.6%</td><td class="n">1.4%</td>
+          <td><span class="pill pill-bad">不可用</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="m" style="margin-top:12px; font-size:14.5px; color:var(--ink-2)">
+    rollout 一列是 <code>‖ẑ−x₀‖ / ‖x₀‖</code>，<strong>1.000 就是「什么都不生成」</strong>。
+    TTS 从 0.855 涨到 2.028，三个点单调上升。这不是训得不够，是方向错了。
+  </p>
+
+  <h3 style="margin-top:30px">诊断：exposure gap，根因是高 t 欠训</h3>
+  <pre>     t   x̂₀ rollout   x̂₀ teacher-forced   gap
+  0.00        0.777               0.765    1.02
+  0.25        0.890               0.650    1.37
+  0.50        0.924               0.483    1.91
+  0.75        0.927               0.402    <b>2.31</b>
+  0.88        0.931               0.410    2.27
+<span class="c">  （误差全部 / ‖x₀‖，1.00 = 预测均值）</span></pre>
+  <p class="m" style="margin-top:14px">
+    teacher-forced 随 t 单调变好（0.765 → 0.402），健康；
+    rollout 一路平在 0.78–0.93，从不改善，所以 z 永远被拉不到数据流形上。
+    最说明问题的是 <strong>t = 0.88</strong> 那行：teacher-forced 时输入 z 本身距 x₀ 只有
+    <code>(1−t)×noise_scale = 0.24</code>，而模型输出距 x₀ 有 <strong>0.41</strong> ——
+    <strong>比直接抄它自己的输入还差</strong>，连「高 t 时输出 ≈ z」都没学会。
+  </p>
+  <p class="m">
+    原因在训练的 t 分布里：<code>t ~ sigmoid(𝒩(−1.5, 0.8))</code> 只有
+    <strong>3.0%</strong> 的样本在 t &gt; 0.5、<strong>0.06%</strong> 在 t &gt; 0.75
+    —— 而 rollout 最需要模型的恰恰是高 t 区。ELF 自己能用这个分布，
+    是因为它在 openwebtext 上跑了 95k 步、早已把高 t 的「抄输入」学会。
+  </p>
+
+  <div class="note">
+    <b>还有一个结构性问题没解决：S2T 喂的是原始 mel。</b>
+    ELF-S2T 那 10.50% 的 WER 建立在<strong>冻结的 Whisper encoder</strong> 之上，
+    音频先被编码成音素内容线性可读的表示再作为条件。喂原始 mel，
+    等于要求 flow transformer 从零学会声学模型。
+    「语音是连续的所以不需要 encoder」对 <strong>TTS 成立</strong>
+    —— 语音作为<strong>目标</strong>确实不需要，这一点在单独的 mel TTS 上已经验证过；
+    但对 S2T 不成立，因为那里语音是<strong>识别的条件</strong>。
+    补上冻结 Whisper 反而让设计更对称：文本侧冻结 T5、语音侧冻结 Whisper，
+    两边都是 0 可训练参数。
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">数据与规模</p>
+  <h2 class="m">配置</h2>
+  <div class="t-scroll">
+    <table>
+      <tbody>
+        <tr><td>数据</td><td class="n">LibriSpeech train-clean-100</td>
+            <td>26,752 clips、251 speakers、31.2M 帧</td></tr>
+        <tr><td>语音表示</td><td class="n">log-mel 100 bins @ 93.75 Hz</td>
+            <td>Vocos <code>charactr/vocos-mel-24khz</code> 自带的特征提取器；
+                <code>latent_mean</code> −1.97041、<code>latent_std</code> 2.41577</td></tr>
+        <tr><td>文本表示</td><td class="n">t5-small encoder ÷ 0.2</td>
+            <td>冻结 35.33M 参数，0 可训练</td></tr>
+        <tr><td>序列</td><td class="n">464 + 48 = 512</td>
+            <td>mel 帧 + text 位置。转录按音频裁剪位置同步裁剪并对齐词边界</td></tr>
+        <tr><td>主干</td><td class="n">ELF-B · 105.02M</td>
+            <td>12 层 / 768 宽 / 12 头</td></tr>
+        <tr><td>优化</td><td class="n">AdamW 1e-4 · batch 32</td>
+            <td>β=(0.9, 0.95)、warmup 500、grad clip 1.0、EMA 0.9995</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<p class="foot">
+  数字来自 job 15492 / 15495 / 15500 的日志与 <code>diag_gap.py</code>。<br>
+  代码：<code>unified.py</code>（模型与 ELF init）、<code>train_unified.py</code>（数据、一步训练、rollout、评测）、
+  <code>elf_tts/model.py</code>（ELF 主干，改动 37 行）。
+</p>
+
+</div>

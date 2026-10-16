@@ -1,0 +1,520 @@
+<title>两条文本通路</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    color-scheme: light;
+    --ground:#eef1f5; --surface:#ffffff; --surface-2:#f6f8fa;
+    --ink:#121820; --ink-2:#3b4756; --muted:#5f6c7b; --line:#d3dae2;
+    --voice:#a84a0a;   /* mel / 声音通道 —— 频谱图的热端 */
+    --text:#0b6376;    /* T5 / 文本通道 —— 冷端 */
+    --frozen:#5e4192;  /* 冻结前端 */
+    --bad:#9c2a22; --good:#256b43; --warn:#8a5a06;
+    --voice-bg:#fbefe6; --text-bg:#e5f1f4; --frozen-bg:#eee9f7;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:"IBM Plex Sans",system-ui,-apple-system,"Helvetica Neue",sans-serif;
+    --serif:"IBM Plex Serif",Georgia,serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --ground:#0e1218; --surface:#161c24; --surface-2:#1c242e;
+      --ink:#e4e9ef; --ink-2:#c0cad5; --muted:#8e9cab; --line:#2b3540;
+      --voice:#e8945a; --text:#5fc2d8; --frozen:#ab8ee0;
+      --bad:#e8847a; --good:#6cc38f; --warn:#d7a84a;
+      --voice-bg:#2a1d13; --text-bg:#13262c; --frozen-bg:#201a30;
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --ground:#0e1218; --surface:#161c24; --surface-2:#1c242e;
+    --ink:#e4e9ef; --ink-2:#c0cad5; --muted:#8e9cab; --line:#2b3540;
+    --voice:#e8945a; --text:#5fc2d8; --frozen:#ab8ee0;
+    --bad:#e8847a; --good:#6cc38f; --warn:#d7a84a;
+    --voice-bg:#2a1d13; --text-bg:#13262c; --frozen-bg:#201a30;
+  }
+
+  body{background:var(--ground); color:var(--ink); font-family:var(--sans);
+       font-size:15px; line-height:1.65; margin:0;}
+  .wrap{max-width:980px; margin:0 auto; padding-inline:20px; padding-block:48px 72px;}
+  .prose{max-width:66ch;}
+
+  h1{font-family:var(--serif); font-weight:600; font-size:2.3rem; line-height:1.15;
+     letter-spacing:-.015em; margin:0 0 .5rem; text-wrap:balance;}
+  h2{font-family:var(--serif); font-weight:600; font-size:1.45rem; line-height:1.25;
+     margin:0 0 .6rem; text-wrap:balance;}
+  h3{font-family:var(--sans); font-weight:600; font-size:1.02rem; margin:0 0 .35rem;}
+  p{margin:0 0 .85rem;}
+  .lede{font-size:1.08rem; color:var(--ink-2); max-width:62ch;}
+  .eyebrow{font-family:var(--mono); font-size:.72rem; letter-spacing:.12em;
+           text-transform:uppercase; color:var(--muted); margin:0 0 .5rem;}
+  section{margin-top:52px;}
+  code,.m{font-family:var(--mono); font-size:.88em;}
+  code{background:var(--surface-2); padding:.1em .35em; border-radius:3px;}
+  a{color:var(--text);}
+
+  .hr{height:1px; background:var(--line); border:0; margin:52px 0 0;}
+
+  /* 两条通路的对照 */
+  .paths{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+         gap:18px; margin:24px 0 8px;}
+  .path{background:var(--surface); border:1px solid var(--line); border-radius:8px;
+        padding:20px 20px 16px; border-top:3px solid var(--line);}
+  .path.t{border-top-color:var(--text);}
+  .path.c{border-top-color:var(--frozen);}
+  .path h3{display:flex; align-items:baseline; gap:.5rem; flex-wrap:wrap;}
+  .path .tag{font-family:var(--mono); font-size:.7rem; letter-spacing:.06em;
+             padding:.15em .45em; border-radius:3px; text-transform:uppercase;}
+  .path.t .tag{background:var(--text-bg); color:var(--text);}
+  .path.c .tag{background:var(--frozen-bg); color:var(--frozen);}
+  dl{margin:14px 0 0; display:grid; grid-template-columns:auto 1fr; gap:6px 14px;
+     font-size:.9rem;}
+  dt{font-family:var(--mono); font-size:.78rem; color:var(--muted);
+     text-transform:uppercase; letter-spacing:.05em; padding-top:.2em;}
+  dd{margin:0;}
+
+  figure{margin:28px 0 0;}
+  .scroller{overflow-x:auto; border:1px solid var(--line); border-radius:8px;
+            background:var(--surface);}
+  .scroller svg{display:block; max-width:100%; height:auto; min-width:760px;}
+  figcaption{font-size:.86rem; color:var(--muted); margin-top:10px; max-width:70ch;}
+
+  table{border-collapse:collapse; width:100%; font-size:.875rem;
+        font-variant-numeric:tabular-nums; margin:16px 0 0;}
+  .tscroll{overflow-x:auto;}
+  th,td{text-align:left; padding:7px 11px; border-bottom:1px solid var(--line);
+        vertical-align:top;}
+  th{font-family:var(--mono); font-size:.72rem; letter-spacing:.06em;
+     text-transform:uppercase; color:var(--muted); font-weight:500;
+     border-bottom:1px solid var(--ink-2);}
+  td.n{text-align:right; font-family:var(--mono);}
+  th.n{text-align:right;}
+  tbody tr:hover{background:var(--surface-2);}
+  .best{color:var(--good); font-weight:600;}
+  .worst{color:var(--bad);}
+  caption{caption-side:top; text-align:left; font-size:.86rem; color:var(--muted);
+          padding:0 0 8px;}
+
+  .note{border-left:3px solid var(--warn); background:var(--surface);
+        padding:14px 18px; border-radius:0 6px 6px 0; margin:20px 0;
+        font-size:.92rem;}
+  .note.bad{border-left-color:var(--bad);}
+  .note strong{color:var(--ink);}
+  .note p:last-child{margin-bottom:0;}
+
+  .steps{list-style:none; counter-reset:s; padding:0; margin:20px 0 0;}
+  .steps > li{counter-increment:s; position:relative; padding-left:48px;
+              margin-bottom:26px;}
+  .steps > li::before{content:counter(s); position:absolute; left:0; top:1px;
+       width:30px; height:30px; border-radius:50%; background:var(--surface);
+       border:1px solid var(--line); color:var(--muted);
+       font-family:var(--mono); font-size:.82rem; display:grid; place-items:center;}
+  .steps h3{margin-bottom:.25rem;}
+  .cost{font-family:var(--mono); font-size:.74rem; color:var(--muted);
+        margin:.3rem 0 .5rem; letter-spacing:.03em;}
+  .cost b{color:var(--ink-2); font-weight:500;}
+
+  .legend{display:flex; gap:20px; flex-wrap:wrap; font-size:.8rem;
+          color:var(--muted); margin:12px 0 0; font-family:var(--mono);}
+  .legend span{display:flex; align-items:center; gap:7px;}
+  .sw{width:22px; height:12px; border-radius:2px; border:1.5px solid var(--ink-2);}
+  .sw.d{border-style:dashed; background:transparent;}
+  .sw.z{background:var(--surface-2); border-color:var(--line);}
+  .sw.s{background:var(--text-bg); border-color:var(--text);}
+
+  ul.plain{padding-left:1.15rem; margin:.4rem 0 .85rem;}
+  ul.plain li{margin-bottom:.3rem;}
+</style>
+
+<div class="wrap">
+
+<p class="eyebrow">统一 TTS + S2T · 2026-10-11</p>
+<h1>两条文本通路</h1>
+<p class="lede prose">模型里有两份完全不同的文本表示，用的是两种完全不同的机制。把它们弄混，关于 <code>cond</code> 的问题就答不清楚。这一页先讲清这两条路，再给当前结构，最后是在「只用一个 transformer backbone」这个约束下真正值得做的改进。</p>
+
+<hr class="hr">
+
+<section>
+  <p class="eyebrow">你问的那个问题</p>
+  <h2>token 怎么变成连续量</h2>
+  <p class="prose">答案取决于问的是哪一条路。<code>z_T</code> 用的是一个<strong>冻结的预训练编码器</strong>，<code>cond</code> 用的是一张<strong>从零训练的查表</strong>——根本不是编码器。</p>
+
+  <div class="paths">
+    <div class="path t">
+      <h3>z_T 通路 <span class="tag">冻结编码器</span></h3>
+      <p style="margin:.4rem 0 0; font-size:.92rem;">T5 的 token id 过 <code>t5-small</code> 的 encoder，拿 <code>last_hidden_state</code>，再除以 <code>0.2</code>。</p>
+      <dl>
+        <dt>机制</dt><dd>6 层 transformer encoder，<b>冻结</b>（35.33M 参数，<code>requires_grad_(False)</code>）</dd>
+        <dt>词表</dt><dd>32,100 个 T5 sentencepiece token</dd>
+        <dt>形状</dt><dd class="m">(B, 48) ids → (B, 48, 512) float</dd>
+        <dt>为什么除 0.2</dt><dd>ELF 的 <code>latent_std</code>。除的是<b>编码器输出</b>（std 0.1585 → 0.79），不是 embedding 表（std 17.26）。判据是让 ELF-B-owt 自己无条件采样，生成的 x₀ std 为 0.81–0.88 —— 只有 0.79 这一侧对得上。</dd>
+        <dt>分辨率</dt><dd>1 个 token ≈ 26.3 个 mel 帧</dd>
+      </dl>
+    </div>
+
+    <div class="path c">
+      <h3>cond 通路 <span class="tag">可训练查表</span></h3>
+      <p style="margin:.4rem 0 0; font-size:.92rem;">字符 id 直接查一张 <code>nn.Embedding(40, 512)</code>，然后过一个 <code>RMSNorm(512)</code>。没有编码器，没有上下文，没有注意力。</p>
+      <dl>
+        <dt>机制</dt><dd><b>一次查表</b>，20,480 个<b>可训练</b>参数，初始化 <code>std 0.02</code>，第 0 行清零当 padding</dd>
+        <dt>词表</dt><dd>40 行，实际只用 38 个字符（index 2–39）：空格、a–z、<code>'&nbsp;"&nbsp;.&nbsp;,&nbsp;;&nbsp;:&nbsp;!&nbsp;?&nbsp;-&nbsp;(&nbsp;)</code></dd>
+        <dt>形状</dt><dd class="m">(B, 560) ids → (B, 560, 512) float</dd>
+        <dt>为什么要 RMSNorm</dt><dd><code>z_T</code> 进来每维 std ≈ 1，而 std-0.02 的表要弱约 50 倍。实测早期 <code>cond</code> 只有 <code>z_T</code> 尺度的 <b>1.14%</b>，而且投影层并没有去补偿它，所以显式归一化到同一量级。</dd>
+        <dt>分辨率</dt><dd>1 个字符 ≈ 6.2 个 mel 帧（比 token 细 4 倍）</dd>
+      </dl>
+    </div>
+  </div>
+
+  <p class="prose" style="margin-top:20px">所以这张「text embedding」不是从任何地方来的 —— 它<b>就是梯度训出来的</b>，和模型其它权重一样。它唯一的输入是字符 id，唯一的作用是给 TTS 提供比 T5 token 更细的时间分辨率。</p>
+
+  <h3 style="margin-top:28px">它自己学出了音素结构</h3>
+  <p class="prose">这张表没有收到任何音素监督，但训完之后它的行向量余弦相似度最高的几对是：</p>
+  <div class="tscroll"><table>
+    <caption>40×512 字符表中余弦相似度最高的字符对（<code>p_dp5</code> 的 EMA 权重）。越大表示两个字符的向量越接近。</caption>
+    <thead><tr><th>字符对</th><th class="n">余弦相似度</th><th>为什么值得注意</th></tr></thead>
+    <tbody>
+      <tr><td class="m">( &nbsp;)</td><td class="n">+0.682</td><td>成对符号，从不单独出现</td></tr>
+      <tr><td class="m">i &nbsp;y</td><td class="n">+0.583</td><td>同一个元音音位的两种拼写</td></tr>
+      <tr><td class="m">s &nbsp;z</td><td class="n">+0.510</td><td>齿擦音，只差清浊</td></tr>
+      <tr><td class="m">k &nbsp;q</td><td class="n">+0.504</td><td>同一个软腭塞音</td></tr>
+      <tr><td class="m">b &nbsp;p</td><td class="n">+0.500</td><td>双唇塞音，只差清浊</td></tr>
+    </tbody>
+  </table></div>
+  <p class="prose" style="margin-top:14px">清浊对、同音异拼对自己聚到了一起。这不是设计出来的，是 TTS 的 mel 重建损失逼出来的 —— 对于预测频谱，<code>b</code> 和 <code>p</code> 确实几乎是同一件事。这也是为什么我一度认为去掉 <code>cond</code> 会伤 TTS。</p>
+</section>
+
+<hr class="hr">
+
+<section>
+  <p class="eyebrow">当前结构</p>
+  <h2>一个 backbone，两个任务，按位置分区</h2>
+  <p class="prose">序列长 560 个位置，固定切成两段：<b>位置 0–511</b> 是 mel 区（512 帧 ÷ 93.75 Hz = <b>5.46 秒</b>），<b>位置 512–559</b> 是 token 区（48 个槽）。token 区的起点固定在 512，不随音频长度浮动，这样它的 RoPE 位置不会漂。</p>
+  <p class="prose">每个位置上堆 5 个通道块，拼成一个 1736 维的向量喂进去。两个任务<b>填的是同一个格子阵，但填的格子不同</b> —— 这是整个设计的核心，也是 Whisper 和 T5 能共用 <code>z_T</code> 这一行却不冲突的原因。</p>
+
+  <figure>
+    <div class="scroller">
+      <svg viewBox="0 0 960 700" role="img" aria-label="TTS 与 S2T 两个任务在同一个 5 通道 × 2 区域的格子阵上填不同的格子，然后汇入同一个 ELF-B backbone 和两个输出头">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7"
+                  markerHeight="7" orient="auto-start-reverse">
+            <polygon points="0,1 10,5 0,9" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <!-- 面板标题 -->
+        <text x="92" y="26" font-family="IBM Plex Sans, sans-serif" font-size="14"
+              font-weight="600" fill="currentColor">TTS　文本 → 语音</text>
+        <text x="528" y="26" font-family="IBM Plex Sans, sans-serif" font-size="14"
+              font-weight="600" fill="currentColor">S2T　语音 → 文本</text>
+
+        <!-- 列头 -->
+        <text x="92" y="48" font-family="IBM Plex Mono, monospace" font-size="10.5"
+              fill="currentColor" opacity=".62">位置 0–511　mel 区</text>
+        <text x="396" y="48" font-family="IBM Plex Mono, monospace" font-size="10.5"
+              fill="currentColor" opacity=".62">512–559</text>
+        <text x="528" y="48" font-family="IBM Plex Mono, monospace" font-size="10.5"
+              fill="currentColor" opacity=".62">位置 0–511　mel 区</text>
+        <text x="832" y="48" font-family="IBM Plex Mono, monospace" font-size="10.5"
+              fill="currentColor" opacity=".62">512–559</text>
+
+        <!-- 行标签 -->
+        <g font-family="IBM Plex Mono, monospace" font-size="11.5" fill="currentColor">
+          <text x="10" y="76">z_T</text>
+          <text x="10" y="124">sc_T</text>
+          <text x="10" y="172">z_V</text>
+          <text x="10" y="220">sc_V</text>
+          <text x="10" y="268">cond</text>
+        </g>
+        <g font-family="IBM Plex Mono, monospace" font-size="9" fill="currentColor"
+           opacity=".5">
+          <text x="10" y="88">512</text>
+          <text x="10" y="136">512</text>
+          <text x="10" y="184">100</text>
+          <text x="10" y="232">100</text>
+          <text x="10" y="280">512</text>
+        </g>
+
+        <!-- ================= TTS 面板 ================= -->
+        <!-- z_T: mel区 = 升采样 T5；token区 = T5 -->
+        <rect x="88" y="58" width="296" height="38" rx="3" fill="var(--text-bg)"
+              stroke="var(--text)" stroke-width="1.5"/>
+        <text x="236" y="82" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="12" fill="var(--text)">T5 latent · 升采样 26.3 帧/token</text>
+        <rect x="392" y="58" width="76" height="38" rx="3" fill="var(--text-bg)"
+              stroke="var(--text)" stroke-width="1.5"/>
+        <text x="430" y="82" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="12" fill="var(--text)">T5 latent</text>
+        <!-- sc_T -->
+        <rect x="88" y="106" width="296" height="38" rx="3" fill="var(--text-bg)"
+              stroke="var(--text)" stroke-width="1.5" opacity=".55"/>
+        <text x="236" y="130" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="12" fill="currentColor" opacity=".8">干净文本的副本（restore 钉回，不是自条件）</text>
+        <rect x="392" y="106" width="76" height="38" rx="3" fill="var(--text-bg)"
+              stroke="var(--text)" stroke-width="1.5" opacity=".55"/>
+        <!-- z_V: 生成目标 -->
+        <rect x="88" y="154" width="296" height="38" rx="3" fill="none"
+              stroke="var(--voice)" stroke-width="2" stroke-dasharray="6 4"/>
+        <text x="236" y="178" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="12" font-weight="600" fill="var(--voice)">mel ← 从噪声积分（生成目标）</text>
+        <rect x="392" y="154" width="76" height="38" rx="3" fill="var(--surface-2)"
+              stroke="var(--line)" stroke-width="1"/>
+        <text x="430" y="178" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="11" fill="currentColor" opacity=".45">0</text>
+        <!-- sc_V -->
+        <rect x="88" y="202" width="296" height="38" rx="3" fill="none"
+              stroke="var(--voice)" stroke-width="1.5" stroke-dasharray="4 4" opacity=".6"/>
+        <text x="236" y="226" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="12" fill="var(--voice)" opacity=".85">自条件</text>
+        <rect x="392" y="202" width="76" height="38" rx="3" fill="var(--surface-2)"
+              stroke="var(--line)" stroke-width="1"/>
+        <text x="430" y="226" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="11" fill="currentColor" opacity=".45">0</text>
+        <!-- cond -->
+        <rect x="88" y="250" width="296" height="38" rx="3" fill="var(--frozen-bg)"
+              stroke="var(--frozen)" stroke-width="1.5"/>
+        <text x="236" y="274" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="12" fill="var(--frozen)">字符查表 · 6.2 帧/字符</text>
+        <rect x="392" y="250" width="76" height="38" rx="3" fill="var(--surface-2)"
+              stroke="var(--line)" stroke-width="1"/>
+        <text x="430" y="274" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="11" fill="currentColor" opacity=".45">0</text>
+
+        <!-- ================= S2T 面板 ================= -->
+        <!-- z_T: mel区 = Whisper；token区 = 生成目标 -->
+        <rect x="524" y="58" width="296" height="38" rx="3" fill="var(--frozen-bg)"
+              stroke="var(--frozen)" stroke-width="1.5"/>
+        <text x="672" y="82" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="12" fill="var(--frozen)">Whisper 投影 768→512（文本已清零）</text>
+        <rect x="828" y="58" width="76" height="38" rx="3" fill="none"
+              stroke="var(--text)" stroke-width="2" stroke-dasharray="6 4"/>
+        <text x="866" y="82" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="11" font-weight="600" fill="var(--text)">文本←噪声</text>
+        <!-- sc_T -->
+        <rect x="524" y="106" width="296" height="38" rx="3" fill="var(--surface-2)"
+              stroke="var(--line)" stroke-width="1"/>
+        <text x="672" y="130" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="11" fill="currentColor" opacity=".45">0</text>
+        <rect x="828" y="106" width="76" height="38" rx="3" fill="none"
+              stroke="var(--text)" stroke-width="1.5" stroke-dasharray="4 4" opacity=".6"/>
+        <text x="866" y="130" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="11" fill="var(--text)" opacity=".85">自条件</text>
+        <!-- z_V: 条件 -->
+        <rect x="524" y="154" width="296" height="38" rx="3" fill="var(--voice-bg)"
+              stroke="var(--voice)" stroke-width="1.5"/>
+        <text x="672" y="178" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="12" fill="var(--voice)">mel（干净条件，全程不动）</text>
+        <rect x="828" y="154" width="76" height="38" rx="3" fill="var(--surface-2)"
+              stroke="var(--line)" stroke-width="1"/>
+        <text x="866" y="178" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="11" fill="currentColor" opacity=".45">0</text>
+        <!-- sc_V -->
+        <rect x="524" y="202" width="296" height="38" rx="3" fill="var(--voice-bg)" stroke="var(--voice)" stroke-width="1.5" opacity=".5"/>
+        <text x="672" y="226" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="11" fill="currentColor" opacity=".8">干净 mel 的副本（restore 钉回，不是自条件）</text>
+        <rect x="828" y="202" width="76" height="38" rx="3" fill="var(--surface-2)"
+              stroke="var(--line)" stroke-width="1"/>
+        <text x="866" y="226" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="11" fill="currentColor" opacity=".45">0</text>
+        <!-- cond -->
+        <rect x="524" y="250" width="296" height="38" rx="3" fill="var(--surface-2)"
+              stroke="var(--line)" stroke-width="1"/>
+        <text x="672" y="274" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="11" fill="currentColor" opacity=".45">0　（泄漏修复后按任务门控）</text>
+        <rect x="828" y="250" width="76" height="38" rx="3" fill="var(--surface-2)"
+              stroke="var(--line)" stroke-width="1"/>
+        <text x="866" y="274" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="11" fill="currentColor" opacity=".45">0</text>
+
+        <!-- 关键标注：同一行，不同列 -->
+        <path d="M 236 300 L 236 314 L 672 314 L 672 300" fill="none"
+              stroke="var(--frozen)" stroke-width="1.2" stroke-dasharray="3 3"/>
+        <text x="454" y="330" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="11.5" fill="var(--frozen)">z_T 这一行被 T5 和 Whisper 共用，但两者占的列不交 —— 实测重叠位置数 = 0</text>
+
+        <!-- 汇聚箭头 -->
+        <g stroke="currentColor" stroke-width="1.4" fill="none" marker-end="url(#ar)"
+           opacity=".75">
+          <path d="M 236 340 L 236 362 L 460 362 L 460 382"/>
+          <path d="M 672 340 L 672 362 L 466 362 L 466 382"/>
+        </g>
+
+        <!-- concat -->
+        <rect x="236" y="386" width="456" height="36" rx="4" fill="var(--surface-2)"
+              stroke="var(--line)"/>
+        <text x="464" y="409" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="11.5" fill="currentColor">concat → (B, 560, 1736)　＝ 512+512+100+100+512</text>
+
+        <line x1="464" y1="422" x2="464" y2="444" stroke="currentColor"
+              stroke-width="1.4" marker-end="url(#ar)" opacity=".75"/>
+
+        <!-- self_cond_proj -->
+        <rect x="276" y="448" width="376" height="34" rx="4" fill="var(--surface)"
+              stroke="var(--line)"/>
+        <text x="464" y="470" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="11.5" fill="currentColor">self_cond_proj　1736 → 512　（888,832 参数）</text>
+
+        <line x1="464" y1="482" x2="464" y2="504" stroke="currentColor"
+              stroke-width="1.4" marker-end="url(#ar)" opacity=".75"/>
+
+        <!-- backbone -->
+        <rect x="236" y="508" width="456" height="58" rx="5" fill="var(--surface)"
+              stroke="currentColor" stroke-width="2"/>
+        <text x="464" y="532" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="14" font-weight="600" fill="currentColor">ELF-B backbone　12 层 × 宽 768</text>
+        <text x="464" y="554" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="11" fill="currentColor" opacity=".7">两任务 100% 共用 · 一个双向 mask · 一次混合前向</text>
+
+        <!-- 分叉 -->
+        <g stroke="currentColor" stroke-width="1.4" fill="none" marker-end="url(#ar)"
+           opacity=".75">
+          <path d="M 360 566 L 360 596"/>
+          <path d="M 568 566 L 568 596"/>
+        </g>
+
+        <rect x="236" y="600" width="248" height="52" rx="4" fill="var(--voice-bg)"
+              stroke="var(--voice)" stroke-width="1.5"/>
+        <text x="360" y="621" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="11.5" fill="var(--voice)">voice_out　512 → 100</text>
+        <text x="360" y="640" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="11" fill="var(--voice)" opacity=".85">mel → Vocos → 波形</text>
+
+        <rect x="500" y="600" width="248" height="52" rx="4" fill="var(--text-bg)"
+              stroke="var(--text)" stroke-width="1.5"/>
+        <text x="624" y="621" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="11.5" fill="var(--text)">unembed　512 → 32,100</text>
+        <text x="624" y="640" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="11" fill="var(--text)" opacity=".85">token 区 argmax → 文本</text>
+
+        <text x="464" y="680" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="11.5" fill="currentColor" opacity=".6">任务专属参数只有 task token：2 × 4 × 768 = 6,144，占 105.4M 的 0.0058%</text>
+      </svg>
+    </div>
+    <div class="legend">
+      <span><i class="sw s"></i>干净条件（不加噪）</span>
+      <span><i class="sw d"></i>流匹配目标（从噪声积分出来）</span>
+      <span><i class="sw z"></i>清零</span>
+    </div>
+    <figcaption>两列的宽度不是按 512:48 等比画的（真实比例约 10.7:1，按比例画 token 列会窄到看不见）。列头标的位置区间是真实的。</figcaption>
+  </figure>
+
+  <h3 style="margin-top:34px">「第一行第二行」到底指什么</h3>
+  <p class="prose">这是最容易问错的地方，因为两个任务的「第一行」不是同一件事：</p>
+  <ul class="plain">
+    <li><b>TTS</b>：条件是 <code>z_T</code> + <code>cond</code>（图中第 1 和第 5 行），目标是 <code>z_V</code>（第 3 行）。文本<b>同时出现三次</b>：字符级、帧级、token 级。</li>
+    <li><b>S2T</b>：条件是 <code>z_V</code>（第 3 行，mel 区）加上 <code>z_T</code> 的 mel 区（第 1 行，但那里装的是 Whisper 不是 T5），目标是 <code>z_T</code> 的 token 区（第 1 行的右半）。</li>
+  </ul>
+  <p class="prose">所以 <code>z_T</code> 这一行在 S2T 里<b>既是条件又是目标</b> —— 左边 512 列是 Whisper 条件，右边 48 列是待生成的文本。这不是设计失误，是 hybrid 布局的全部要点：两个任务在同一个格子阵上换着填，backbone 一个字节都不用分叉。</p>
+</section>
+
+<hr class="hr">
+
+<section>
+  <p class="eyebrow">每个数字从哪来</p>
+  <h2>维度表</h2>
+  <p class="prose">下面每一行都标了来源。<b>固定</b>＝外部模型或数据决定，我们改不了；<b>ELF</b>＝沿用 ELF-B 的配置；<b>我们选的</b>＝这个项目的决定；<b>推导</b>＝由上面几行算出来；<b>实测</b>＝今天在真实 batch 上数出来的。</p>
+  <div class="tscroll"><table>
+    <thead><tr><th>量</th><th class="n">值</th><th>来源</th><th>怎么来的</th></tr></thead>
+    <tbody>
+      <tr><td>mel 帧率</td><td class="n">93.75 Hz</td><td>固定</td><td>Vocos <code>MelSpectrogramFeatures</code>：24 kHz ÷ hop 256</td></tr>
+      <tr><td>mel 维度</td><td class="n">100</td><td>固定</td><td>Vocos 的 mel 滤波器组数，必须匹配才能用它的声码器</td></tr>
+      <tr><td>Whisper 特征率</td><td class="n">50 Hz</td><td>固定</td><td>whisper-small encoder 的输出帧率</td></tr>
+      <tr><td>Whisper 特征维</td><td class="n">768</td><td>固定</td><td>whisper-small 的 <code>d_model</code></td></tr>
+      <tr><td>T5 词表</td><td class="n">32,100</td><td>固定</td><td>t5-small 的 sentencepiece 词表</td></tr>
+      <tr><td>T5 latent 维</td><td class="n">512</td><td>固定</td><td>t5-small encoder 的 <code>d_model</code></td></tr>
+      <tr><td>backbone 层数 / 宽度</td><td class="n">12 / 768</td><td>ELF</td><td>ELF-B 的配置，为了能加载它的预训练权重</td></tr>
+      <tr><td><code>latent_std</code></td><td class="n">0.2</td><td>ELF</td><td>ELF 自己的归一化常数</td></tr>
+      <tr><td>mel 区长度</td><td class="n">512</td><td>我们选的</td><td>2 的幂，且 5.46 s 能覆盖 LJSpeech 大多数句子</td></tr>
+      <tr><td>token 区长度</td><td class="n">48</td><td>我们选的</td><td>实测最长只用到 28，48 留了余量</td></tr>
+      <tr><td>字符表行数</td><td class="n">40</td><td>我们选的</td><td>38 个实际字符 + 第 0 行 padding + 1 行余量</td></tr>
+      <tr><td>序列总长</td><td class="n">560</td><td>推导</td><td>512 + 48</td></tr>
+      <tr><td>mel 区时长</td><td class="n">5.46 s</td><td>推导</td><td>512 ÷ 93.75</td></tr>
+      <tr><td>输入宽度</td><td class="n">1736</td><td>推导</td><td>512 + 512 + 100 + 100 + 512</td></tr>
+      <tr><td>去掉 cond 后宽度</td><td class="n">1224</td><td>推导</td><td>1736 − 512</td></tr>
+      <tr><td>去掉 cond 省的参数</td><td class="n">283,136</td><td>推导</td><td>20,480（表）+ 512（norm）+ 262,144（投影少的 512 列 × 512）</td></tr>
+      <tr><td>task token 参数</td><td class="n">6,144</td><td>推导</td><td>2 任务 × 4 token × 宽 768</td></tr>
+      <tr><td>每行真 token 数</td><td class="n">17.6</td><td>实测</td><td>256 行 batch 的均值；中位 18，范围 5–28，<b>0% 打到 48 上限</b></td></tr>
+      <tr><td>每行有效 mel 帧</td><td class="n">463.7</td><td>实测</td><td>同一 batch 均值，范围 147–512</td></tr>
+      <tr><td>帧 / token</td><td class="n">26.3</td><td>实测</td><td>463.7 ÷ 17.6</td></tr>
+      <tr><td>可训练总参数</td><td class="n">105,416,648</td><td>实测</td><td>其中 <code>elf.*</code> 占 104,950,628 = <b>99.56%</b></td></tr>
+    </tbody>
+  </table></div>
+  <p class="prose" style="margin-top:16px">三个前端全部冻结，不在上面这 105.4M 里：Vocos 分析端 <b>0</b> 参数（纯 STFT + 滤波器组）、Vocos 声码器 <b>13.53M</b>（只在评测时用）、t5-small encoder <b>35.33M</b>、whisper-small encoder <b>88.2M</b>（decoder 的 153.6M 根本没加载）。唯一为 Whisper 新训的是那个 768→512 的线性投影，<b>393,728</b> 个参数 —— 它必须可训练，因为 Whisper 特征和 ELF 的 latent 空间没有任何对应关系。</p>
+</section>
+
+<hr class="hr">
+
+<section>
+  <p class="eyebrow">结果</p>
+  <h2>S2T 能用，TTS 还不行</h2>
+
+  <div class="note bad">
+    <p><strong>先说一个今天刚发现的问题。</strong>10-10 17:04 我改了 collate（把转录随音频裁剪、并把 <code>chars</code> 按任务门控）。在那之前测的 TTS 音频和之后测的<b>不可比</b>。同一个 <code>p_dp5</code> ckpt，旧代码给 gen WER 50.63，当前代码给 <b>93.07</b>。</p>
+    <p>所以我昨天说的「去掉 cond 让 TTS 从 50 掉到 89」是<b>错的</b> —— 那个对比跨了代码版本。在同一套代码下，cond 保留和去掉的 TTS 都在 82–94 这一档。要得到干净结论，需要在当前代码下重训一个保留 cond 的模型，这正是 job 15971 在做的事。</p>
+  </div>
+
+  <h3>S2T 方向（这些数字是可比的，同一套代码）</h3>
+  <div class="tscroll"><table>
+    <caption>n=288 完整测试集，ODE 显式 Euler 均匀 32 步。WER <b>越低越好</b>，token accuracy <b>越高越好</b>。</caption>
+    <thead><tr><th>模型</th><th>训练时 audio-drop</th><th class="n">WER 无引导</th><th class="n">WER 最佳引导</th><th class="n">最佳 w</th></tr></thead>
+    <tbody>
+      <tr><td class="m">p_dp5</td><td>0.0（<b>没有</b>无条件分支）</td><td class="n">25.09</td><td class="n best">21.42</td><td class="n">1.5</td></tr>
+      <tr><td class="m">p_dp5_acfg</td><td>0.1（<b>有</b>无条件分支）</td><td class="n">26.75</td><td class="n">23.96</td><td class="n">2.0</td></tr>
+    </tbody>
+  </table></div>
+  <p class="prose" style="margin-top:14px">audio CFG 白赚 <b>3.67</b> 个 WER 点，纯推理期，不用重训。但这里有个反直觉的结果：<b>没有</b>无条件分支的那个模型改善<b>更大</b>（−3.66 vs −2.80），绝对值也更好。那个作为伪证对照的模型本该不受引导影响 —— 它反而赢了。所以引导起作用的机制不是「兑现训练出来的无条件分支」，而是对比度放大，任何模型都支持。<code>audio_drop_prob</code> 因此是纯成本，应该设 0。</p>
+
+  <div class="note">
+    <p><strong>n=64 的 eval 偏乐观约 3 点。</strong><code>p_dp5</code> 在训练期 n=64 上最后 5 次均值是 21.75%，在 n=288 上无引导是 25.09% —— 偏乐观 3.34 点。之前所有表里的 S2T 数字都要按这个偏移读。</p>
+  </div>
+
+  <h3 style="margin-top:28px">TTS 方向的天花板</h3>
+  <div class="tscroll"><table>
+    <caption>LJSpeech 留出集 n=40，不给 voice prompt。WER <b>越低越好</b>，UTMOS <b>越高越好</b>（1–5 分，越高越像真人）。</caption>
+    <thead><tr><th>轨道</th><th class="n">WER ↓</th><th class="n">UTMOS ↑</th><th>这是什么</th></tr></thead>
+    <tbody>
+      <tr><td>orig</td><td class="n">17.86</td><td class="n">4.362</td><td>真实录音，ASR 自己的误差下限</td></tr>
+      <tr><td>ceiling</td><td class="n">14.29</td><td class="n">3.481</td><td>真 mel 过声码器 —— <b>任何生成都不可能超过这一行</b></td></tr>
+      <tr><td>最好的统一模型</td><td class="n worst">81.93</td><td class="n">3.232</td><td>当前代码下三个 ckpt 的最好值</td></tr>
+      <tr><td>uncond</td><td class="n">363.45</td><td class="n">1.640</td><td>不给文本，衡量「文本到底有没有被用上」</td></tr>
+    </tbody>
+  </table></div>
+  <p class="prose" style="margin-top:14px">UTMOS 已经接近天花板（3.23 vs 3.48）—— <b>音质没问题，内容不对</b>。模型生成的是听起来像人声、但说的不是给定文本的音频。这是 TTS 方向真正的病灶。</p>
+</section>
+
+<hr class="hr">
+
+<section>
+  <p class="eyebrow">改进方向</p>
+  <h2>一个 backbone 不是限制，是已经做到的事</h2>
+  <p class="prose">先确认这一点：现在两个任务共用 backbone 的程度是 <b>100%</b>。12 层里没有任何任务条件参数，一个双向 mask 服务两个任务，一次混合前向。唯一的任务专属参数是 4 个 task token，<b>6,144 个参数，占 0.0058%</b>。下面每一条改进都不碰这个结构。</p>
+
+  <ol class="steps">
+    <li>
+      <h3>TTS 的 classifier-free guidance</h3>
+      <p class="cost"><b>成本</b> 零训练，纯推理 · <b>状态</b> job 15970 正在跑 · <b>依据</b> S2T 侧同一手法值 3.67 个 WER 点</p>
+      <p>这是最该先做的，因为它免费。我今天才发现 <code>--gamma</code> 不是 CFG 而是 SDE churn（重加噪）—— <b>TTS 方向在推理时从来没有任何引导</b>。而 flow-matching TTS 用 CFG 是标准做法（Voicebox、E2-TTS 都是 w≈2）。无条件分支的机件本来就在（<code>drop_text</code> 把 T5 latent 和字符块一起清零），只是被当成一条独立 track 在跑，没去引导主路径。考虑到 UTMOS 已经接近天花板而 WER 还差 68 点，「内容不对」正是 CFG 最擅长修的那类问题。</p>
+    </li>
+    <li>
+      <h3>把 decoder_prob 做成退火，而不是挑一个点</h3>
+      <p class="cost"><b>成本</b> 一个训练标志，零新参数 · <b>依据</b> 实测这是个零和旋钮</p>
+      <p>这个旋钮从 0.2 调到 0.5，S2T 好 5.2 个 WER 点，TTS 差 6.3 个。<b>一个任务的收益几乎等于另一个的损失</b> —— 这就是单 backbone 真正的代价所在，而且它在<b>目标函数的配比</b>上，不在参数上。<code>decoder_prob</code> 是每行一次伯努利抽样，决定这一行算流匹配损失还是 CE 解码损失，两个任务共用同一次抽样。与其在这条线上挑一个妥协点，不如让它随训练退火：早期高一点把文本接地学牢，后期降下来把 mel 质量磨出来。这不改结构，只改训练课程。</p>
+    </li>
+    <li>
+      <h3>给 Whisper 自己的列块</h3>
+      <p class="cost"><b>成本</b> 512 个输入列，约 26 万参数，backbone 不变 · <b>依据</b> 这个选择从未被检验</p>
+      <p>现在 Whisper 投影是<b>加进</b> <code>z_T</code> 的（<code>z_t = z_t + a</code>），和 T5 共用同一组 512 列。位置上不冲突（实测重叠为 0），但这 512 列要承载两个尺度差很多的分布：T5 latent std ≈ 0.79，而投影输出实测是它的 2.5–2.7 倍，训练并没有把它拉平，反而从 2.03 倍涨上去了。我当初这么设计是为了骑在 ELF 预训练过的通道上，但<b>「加进 z_T」和「单独开一块」这两种做法我从来没对比过</b> —— 之前测到的最大 S2T 改善是「有 Whisper vs 没 Whisper」，不是「放哪里」。</p>
+    </li>
+    <li>
+      <h3>给 TTS 一个时长预测头</h3>
+      <p class="cost"><b>成本</b> token 区上的一个线性头，backbone 共用 · <b>依据</b> 现在的 TTS 不是真 TTS</p>
+      <p>当前 TTS 是通过 <code>t5_idx[j] = ⌊j·N/T⌋</code> 这个升采样率<b>被告知目标时长的</b> —— T 来自真实音频的长度。所以它实际在做的是「文本 + 时长 → 语音」，不是「文本 → 语音」。真正的 TTS 需要自己预测时长。好消息是这完全可以留在一个 backbone 里：在 48 个 token 位置上挂一个头，预测每个 token 占多少帧，推理时用它算升采样率。</p>
+    </li>
+    <li>
+      <h3>把序列拉长，并跑 LibriSpeech 全长</h3>
+      <p class="cost"><b>成本</b> 约 42 GB Whisper 预计算 + 6–8 小时训练 · <b>依据</b> 现在没有任何数字可以对外比</p>
+      <p>5.46 秒和 48 个 token 的上限意味着只能处理短句，而且<b>从没在 LibriSpeech 全长上训过</b>，所以 S2T 的 21.42% 没法和 ELF-S2T 的 10.50% 比，TTS 也没法和 Matcha-TTS 比。多说话人更是完全没解决：LibriSpeech 上 UTMOS 只有 1.765（给 30% prompt 也才 1.930），而 LJSpeech 是 3.23–3.69。缓存里已经有 <code>spk</code> 字段，但还没接进去。</p>
+    </li>
+  </ol>
+
+  <p class="prose" style="margin-top:28px">我的判断是前两条值得立刻做完：第 1 条免费且目标明确（UTMOS 已够、WER 差太多，正是 CFG 的靶子），第 2 条直指单 backbone 的核心代价且不改结构。第 3、4 条是真正的架构改进但各需一轮训练。第 5 条是让结果可对外比较的前提，不改进任何东西。</p>
+</section>
+
+</div>

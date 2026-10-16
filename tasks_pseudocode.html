@@ -1,0 +1,319 @@
+<title>Tasks, Shapes, Pseudocode</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+
+  :root{
+    color-scheme: light;
+    --paper:#f3f5f7; --card:#fbfbfc; --sunk:#eceff2;
+    --ink:#15181e; --ink-2:#4a515c; --ink-3:#79818d;
+    --rule:#d6dbe1; --rule-2:#e6e9ee;
+    --voice:#12707b; --voice-soft:#dbedef; --voice-edge:#7fbcc3;
+    --text-ch:#965909; --text-soft:#f4e6d2; --text-edge:#d4a768;
+    --elf:#4f5865; --elf-soft:#e3e6ea;
+    --frozen:#5d5a7d; --frozen-soft:#e6e4ee;
+    --ok:#1a6a44; --bad:#9c2a20;
+    --sans:"IBM Plex Sans Condensed","Helvetica Neue",Arial,sans-serif;
+    --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+    --measure:66ch;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --paper:#10131a; --card:#171b23; --sunk:#1c212a;
+    --ink:#e6eaf0; --ink-2:#a5aeba; --ink-3:#6f7883;
+    --rule:#2a313b; --rule-2:#212731;
+    --voice:#46c0cc; --voice-soft:#103036; --voice-edge:#2a6e77;
+    --text-ch:#deab5e; --text-soft:#352616; --text-edge:#7d5c2a;
+    --elf:#98a2ae; --elf-soft:#232933;
+    --frozen:#a8a3c6; --frozen-soft:#232132;
+    --ok:#56c48c; --bad:#e8857a;
+  }}
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --paper:#10131a; --card:#171b23; --sunk:#1c212a;
+    --ink:#e6eaf0; --ink-2:#a5aeba; --ink-3:#6f7883;
+    --rule:#2a313b; --rule-2:#212731;
+    --voice:#46c0cc; --voice-soft:#103036; --voice-edge:#2a6e77;
+    --text-ch:#deab5e; --text-soft:#352616; --text-edge:#7d5c2a;
+    --elf:#98a2ae; --elf-soft:#232933;
+    --frozen:#a8a3c6; --frozen-soft:#232132;
+    --ok:#56c48c; --bad:#e8857a;
+  }
+
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:var(--serif); font-size:16.5px; line-height:1.62;
+    padding-inline:20px; padding-block:0; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1020px; margin:0 auto; padding-block:46px 72px;}
+  .m{max-width:var(--measure);}
+
+  h1{font-family:var(--sans); font-weight:700;
+     font-size:clamp(30px,5.4vw,46px); line-height:1.05;
+     letter-spacing:-.015em; margin:0 0 14px; text-wrap:balance;}
+  h2{font-family:var(--sans); font-weight:600;
+     font-size:clamp(21px,3vw,26px); line-height:1.2; margin:0 0 10px;
+     text-wrap:balance;}
+  h3{font-family:var(--sans); font-weight:600; font-size:17px; margin:0 0 8px;}
+  p{margin:0 0 14px;}
+
+  .eyebrow{font-family:var(--mono); font-size:11px; font-weight:500;
+    letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3);
+    margin:0 0 7px;}
+  .lede{font-size:19px; line-height:1.55; color:var(--ink-2);}
+  code{font-family:var(--mono); font-size:.885em; background:var(--sunk);
+    padding:.1em .34em; border-radius:3px;}
+
+  section{margin-top:44px; padding-top:26px; border-top:1px solid var(--rule);}
+  section:first-of-type{border-top:0; padding-top:0;}
+
+  figure{margin:26px 0 0;}
+  .fig-scroll{overflow-x:auto; margin-inline:-4px; padding-inline:4px;}
+  svg.d{display:block; width:100%; max-width:100%; height:auto;
+        color:var(--ink);}
+  svg.wide{min-width:900px;}
+  svg.med{min-width:660px;}
+  figcaption{font-size:14px; line-height:1.5; color:var(--ink-2);
+    margin-top:11px; max-width:var(--measure);}
+  figcaption b{font-family:var(--sans); color:var(--ink);}
+
+  .t-scroll{overflow-x:auto; margin-top:20px;}
+  table{border-collapse:collapse; width:100%; min-width:620px; font-size:14.5px;}
+  th,td{text-align:left; padding:8px 14px 8px 0;
+    border-bottom:1px solid var(--rule-2); vertical-align:top;}
+  th{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--ink-3); font-weight:500;
+    border-bottom:1px solid var(--rule);}
+  td.n{font-family:var(--mono); font-variant-numeric:tabular-nums;
+    white-space:nowrap;}
+  td.sh{font-family:var(--mono); white-space:nowrap; font-size:13.5px;}
+  .ax{font-family:var(--serif); font-size:11.5px; color:var(--ink-3);
+    white-space:nowrap;}
+  tr.sum td{font-family:var(--sans); font-weight:600;
+    border-top:1px solid var(--rule); border-bottom:0;}
+  .tag{font-family:var(--mono); font-size:10px; letter-spacing:.08em;
+    text-transform:uppercase; padding:2px 6px; border-radius:3px;
+    font-weight:500; white-space:nowrap;}
+  .t-elf{background:var(--elf-soft); color:var(--elf);}
+  .t-new{background:var(--voice-soft); color:var(--voice);}
+  .t-frz{background:var(--frozen-soft); color:var(--frozen);}
+
+  pre{font-family:var(--mono); font-size:13px; line-height:1.68;
+    background:var(--card); border:1px solid var(--rule); border-radius:5px;
+    padding:14px 16px; overflow-x:auto; margin:18px 0 0; color:var(--ink);}
+  pre .c{color:var(--ink-3);}
+  pre b{color:var(--voice); font-weight:600;}
+
+  .note{border-left:2px solid var(--text-ch); padding:2px 0 2px 15px;
+    margin:22px 0 0; max-width:var(--measure); font-size:15.5px;
+    color:var(--ink-2);}
+  .note b{color:var(--ink); font-family:var(--sans);}
+
+  .foot{margin-top:50px; padding-top:20px; border-top:1px solid var(--rule);
+    font-family:var(--mono); font-size:11.5px; color:var(--ink-3);
+    line-height:1.7;}
+
+  .two{display:grid;gap:18px;grid-template-columns:1fr;margin-top:22px}
+  @media(min-width:800px){.two{grid-template-columns:1fr 1fr}}
+  .two>div{background:var(--card);border:1px solid var(--rule);
+    border-radius:5px;padding:18px 19px}
+  .two h3{display:flex;align-items:baseline;gap:9px;margin-bottom:12px}
+  .two h3 .bdg{font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+    text-transform:uppercase;padding:2px 7px;border-radius:3px;font-weight:500}
+  .b-v{background:var(--voice-soft);color:var(--voice)}
+  .b-t{background:var(--text-soft);color:var(--text-ch)}
+  .two dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:7px 14px;
+    font-size:14.5px}
+  .two dt{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);
+    letter-spacing:.03em;padding-top:3px;white-space:nowrap}
+  .two dd{margin:0}
+  pre{font-size:12.5px;line-height:1.72}
+  pre .k{color:var(--text-ch);font-weight:600}
+  pre .v{color:var(--voice);font-weight:600}
+  pre .n2{color:var(--ink);font-weight:600}
+  .hd{font-family:var(--mono);font-size:11px;letter-spacing:.11em;
+    text-transform:uppercase;color:var(--ink-3);margin:30px 0 0}
+
+</style>
+<div class="wrap">
+<section><p class="eyebrow">Unified TTS + S2T</p>
+<h1 class="m">两个任务，一份伪代码</h1>
+<p class="lede m">每个数字都是从运行中的模型打印出来的。两个任务的张量序列长度<b>相同</b>（560），但 flow 真正作用的位置数差 9 倍 —— 这是理解整件事的关键。</p></section>
+<section><p class="eyebrow">任务定义</p><h2 class="m">TTS 和 S2T 分别在做什么</h2>
+<div class="two">
+<div><h3>TTS <span class="bdg b-v">语音通道是目标</span></h3><dl>
+<dt>给什么</dt><dd>一段文本（转录），加上可选的前 K 帧真实 mel 作为 <b>voice prompt</b>（告诉模型用谁的嗓音）</dd>
+<dt>生成什么</dt><dd>512 帧 log-mel，100 维每帧。再过冻结的 Vocos 声码器变波形</dd>
+<dt>flow 作用在</dt><dd><code>z_V</code>，语音通道，音频区的非 prompt 位置</dd>
+<dt>条件是</dt><dd>升采样到帧率的文本 latent（在 <code>z_T</code> 的音频区）＋ token 区的干净 T5 latent ＋ 升采样字符嵌入（<code>cond</code>）＋ voice prompt 那几帧干净 mel</dd>
+<dt>有效长度</dt><dd><b>平均 422 个位置</b>参与 flow loss（512 帧减去 voice prompt 和 padding）</dd>
+<dt>decode head</dt><dd><b>不启用</b>。连续目标没有 token 可预测</dd>
+</dl></div>
+<div><h3>S2T <span class="bdg b-t">文本通道是目标</span></h3><dl>
+<dt>给什么</dt><dd>一段音频。原始 mel 填在 <code>z_V</code> 并全程钉死为干净；同时它的冻结 Whisper 特征经投影加进 <code>z_T</code> 的音频区</dd>
+<dt>生成什么</dt><dd>48 个位置的 T5 latent（512 维每个），再经 ELF 预训练的 decode head 变成 token id</dd>
+<dt>flow 作用在</dt><dd><code>z_T</code>，文本通道，<b>只在 token 区</b></dd>
+<dt>条件是</dt><dd>音频区的干净 mel ＋ 投影后的 Whisper 特征。<code>cond</code> 块为 0 —— 还不知道文本</dd>
+<dt>有效长度</dt><dd><b>恰好 48 个位置</b>（<code>max_text</code>），真 token 约 19 个，其余补 pad，模型要自己学会在哪里停</dd>
+<dt>decode head</dt><dd><b>启用</b>，概率 <code>Bernoulli(0.2)</code>。这里 ELF 的 late discretization 真正用上了</dd>
+</dl></div></div>
+<div class="note"><b>同一个张量，9 倍的有效长度差。</b>两个任务的序列都是 560 个位置、都过同一个 12 层 transformer，flow loss 的位置数却是 422 对 48。所以 S2T 的学习信号本来就稀疏得多 —— 实测这正是它更难的原因之一：同一布局下没有 Whisper 时，S2T 的 token 准确率 30,000 步只爬到 2.5%，而换成逐帧升采样的冗余目标（每 token 约 27 个位置）能爬到 11.2%。</div>
+</section>
+<section><p class="eyebrow">序列长度</p><h2 class="m">560 是怎么来的</h2>
+<div class="t-scroll"><table><thead><tr><th></th><th>TTS</th><th>S2T</th><th>怎么定的</th></tr></thead><tbody>
+<tr><td>张量序列长度 L</td><td class="n">560</td><td class="n">560</td><td><code>max_length</code>，我们选的。RoPE 表按它建，所以每行必须正好这么长</td></tr>
+<tr><td>音频区</td><td class="n">512 帧</td><td class="n">512 帧</td><td><code>max_length − max_text</code>。512 帧 @93.75Hz = <b>5.46 秒</b></td></tr>
+<tr><td>token 区</td><td class="n">48 位置</td><td class="n">48 位置</td><td><code>max_text</code>，取 t5 token 数的 p99 之上</td></tr>
+<tr><td>真实 token 数 N</td><td class="n">约 19</td><td class="n">约 19</td><td>文本本身决定，不足 48 的补 pad</td></tr>
+<tr class="best"><td><b>flow loss 的位置数</b></td><td class="n"><b>约 422</b></td><td class="n"><b>48</b></td><td>TTS = 音频区 − voice prompt − padding；S2T = 整个 token 区</td></tr>
+<tr><td>条件位置数</td><td class="n">约 592</td><td class="n">约 439</td><td>通道×位置的计数，所以可以超过 L</td></tr>
+<tr><td>padding</td><td class="n">约 29</td><td class="n">约 73</td><td>短于 512 帧的音频、以及 token 区未用满的部分</td></tr>
+</tbody></table></div></section>
+<section><p class="eyebrow">伪代码</p><h2 class="m">完整流程</h2>
+<p class="m">变量名和真实代码一致（<code>unified.py</code> / <code>train_unified.py</code>），可以直接对照。</p>
+<p class="hd">A · 一次性预处理（离线）</p>
+<pre><span class="c"># 每条音频做一次，结果写进 memmap 缓存</span>
+for 每条音频 (wav, 转录) in 数据集:
+    w   = resample(wav, → 24000 Hz)
+    mel = VocosMel(w)                      <span class="c"># 冻结，0 参数。(T, 100) @93.75Hz</span>
+    chars = [stoi[c] for c in 转录.lower()]  <span class="c"># 字符 id，词表 40</span>
+    t5    = T5Tokenizer(转录.lower())        <span class="c"># token id。小写很重要：</span>
+                                           <span class="c"># 大写会被 sentencepiece 切碎</span>
+    w16 = resample(wav, → 16000 Hz)
+    wh  = WhisperEncoder(w16)[:真实长度]    <span class="c"># 冻结 88.2M。(M, 768) @50Hz</span>
+
+<span class="c"># 全局统计，用来归一化</span>
+latent_mean, latent_std = mel 的均值与标准差   <span class="c"># LJSpeech: −1.4747 / 1.9931</span>
+</pre>
+<p class="hd">B · 构造一个 batch 行</p>
+<pre>L, max_text = 560, 48
+max_mel     = L − max_text          <span class="c"># 512</span>
+tok0        = max_mel               <span class="c"># token 区固定从第 512 位开始，</span>
+                                    <span class="c"># 这样它的 RoPE 位置不随音频长度漂移</span>
+
+<span class="k">task</span> = S2T if rand() &lt; p_s2t else TTS   <span class="c"># 逐样本抽，不是交替步数</span>
+
+<span class="c"># ---- 裁剪：音频和转录必须同步裁，否则 S2T 被要求"听 5 秒写 12 秒"</span>
+T = min(T_full, max_mel)
+a = randint(0, T_full − T)                      <span class="c"># 裁剪起点</span>
+c0, c1 = ⌊a·N_chars/T_full⌋, ⌈(a+T)·N_chars/T_full⌉
+转录片段 = 转录[c0:c1] 并对齐到词边界
+tok      = T5Tokenizer(转录片段);  N = len(tok)
+
+<span class="c"># ---- 三个通道，两个区</span>
+mel_norm = (mel[a:a+T] − latent_mean) / latent_std       <span class="c"># (T, 100)</span>
+<span class="v">x0_V</span>[0:T]           = mel_norm                      <span class="c"># 语音通道，只在音频区</span>
+<span class="k">x0_T</span>[tok0:tok0+N] = T5Encoder(tok) / 0.2            <span class="c"># 文本通道，token 区</span>
+
+if task == TTS:
+    up = ⌊arange(T)·N/T⌋                                 <span class="c"># 短→长，整段复制</span>
+    <span class="k">x0_T</span>[0:T] = T5Encoder(tok)[up] / 0.2             <span class="c"># 升采样文本，做条件</span>
+    cond[0:T] = CharEmbed(chars_upsampled[a:a+T])
+else:  <span class="c"># S2T</span>
+    wi = ⌊(a + arange(T)) · 50/93.75⌋                     <span class="c"># Whisper 50Hz → 我们 93.75Hz</span>
+    whisper_feat[0:T] = wh[wi]                            <span class="c"># 之后在 forward 里投影进 x0_T</span>
+    cond[:] = 0                                           <span class="c"># 还不知道文本</span>
+
+<span class="c"># ---- 谁干净、谁加噪：按通道标，不是按位置</span>
+if task == TTS:
+    <span class="k">prompt_T</span>[:] = 1                  <span class="c"># 全部文本都是条件</span>
+    K = int(T · uniform(0, 0.3));  <span class="v">prompt_V</span>[0:K] = 1   <span class="c"># voice prompt</span>
+else:
+    <span class="v">prompt_V</span>[0:T] = 1               <span class="c"># 音频全部是条件</span>
+    <span class="k">prompt_T</span>[:] = 0                  <span class="c"># token 区是目标</span>
+</pre>
+<p class="hd">C · 一步训练（三次 forward）</p>
+<pre><span class="c"># ---- 1. 加噪。每行一个 t，两个通道共享（因为每行只有一个通道加噪）</span>
+<span class="n2">t</span> = sigmoid(randn() · 0.8 + (−1.5))        <span class="c"># 均值 0.209，中位 0.182</span>
+z_V = t·x0_V + (1−t)·randn()·<span class="n2">2.0</span>;  z_V = where(prompt_V, x0_V, z_V)
+z_T = t·x0_T + (1−t)·randn()·<span class="n2">2.0</span>;  z_T = where(prompt_T, x0_T, z_T)
+
+<span class="c"># ---- 2. 两次 no_grad forward，构造 ELF 的自条件 CFG 目标</span>
+sc_cfg = uniform(1, 3)
+with no_grad:
+    x_u = model(z_T, z_V, sc=<span class="n2">0</span>,   task, whisper_feat)   <span class="c"># 自条件为零</span>
+    x_c = model(z_T, z_V, sc=x_u, task, whisper_feat)   <span class="c"># 自条件为 x_u</span>
+    v_u = (x_u − z)/clamp(1−t, 0.05)
+    v_c = (x_c − z)/clamp(1−t, 0.05)
+    guidance = (1 − 1/sc_cfg) · (v_c − v_u)
+    if rand() &gt; 0.5:  guidance = 0                      <span class="c"># 一半的行丢掉</span>
+    <span class="n2">v_target</span> = (x0 − z)/clamp(1−t, 0.05) + guidance
+
+<span class="c"># ---- 3. decoder 分支：只给 S2T 行，而且 t 直接设 1</span>
+<span class="k">d</span> = Bernoulli(<span class="n2">0.2</span>) · (task == S2T)
+λ = sigmoid(randn() · 0.8 + <span class="n2">(−0.5)</span>)       <span class="c"># audio forcing：原值 +0.8</span>
+z_T_in = d ? (λ·x0_T + (1−λ)·randn()·5.0) : z_T
+t_in   = d ? 1.0 : t
+
+<span class="c"># ---- 4. 带梯度的那一次</span>
+x̂_T, x̂_V, logits = model(z_T_in, z_V, sc=x_u·use_sc, t_in, task, whisper_feat,
+                          decode_head_active=d)
+
+<span class="c"># ---- 5. loss：L2 只作用在该行加噪的那个通道</span>
+L2 = task==S2T ? ‖(x̂_T−z_T)/(1−t) − v_target_T‖²
+                : ‖(x̂_V−z_V)/(1−t) − v_target_V‖²
+CE = CrossEntropy(logits, token_ids)                     <span class="c"># 只 S2T 行有意义</span>
+
+m      = flow 目标位置的 mask     <span class="c"># TTS ≈ 422 个，S2T = 48 个</span>
+m_ce   = m · d;   m_l2 = m · (1−d)
+<span class="n2">loss</span>   = ( Σ CE·m_ce + Σ L2·m_l2 ) / <span class="n2">Σ m</span>   <span class="c"># 同一个分母！</span>
+                                   <span class="c"># 所以 0.2 就是 CE 的实际权重</span>
+loss.backward();  clip_grad_norm(1.0);  AdamW.step()
+EMA ← 0.9995·EMA + 0.0005·model
+</pre>
+<p class="hd">D · 推理（采样）</p>
+<pre>NFE = <span class="n2">32</span>
+ts  = <span class="n2">linspace(0, 1, 33)</span>              <span class="c"># 均匀！步长恒为 h = 1/32 = 0.03125</span>
+
+<span class="c"># 目标通道从噪声出发，条件通道钉死在干净值</span>
+z_V = where(prompt_V, x0_V, randn()·2.0)
+z_T = where(prompt_T, x0_T, randn()·2.0)
+x̂_prev = 0                               <span class="c"># 自条件，第一步为零</span>
+
+for i in 0..31:
+    t = ts[i];   h = ts[i+1] − t
+    x̂_T, x̂_V = model(z_T, z_V, sc=x̂_prev, t, task, whisper_feat)
+
+    <span class="c"># 显式 Euler：dz/dt = (x̂0 − z)/(1−t)</span>
+    z_V += h · (x̂_V − z_V)/clamp(1−t, <span class="n2">0.05</span>)
+    z_T += h · (x̂_T − z_T)/clamp(1−t, <span class="n2">0.05</span>)
+
+    z_V = where(prompt_V, x0_V, z_V)      <span class="c"># 条件通道每步重新钉回</span>
+    z_T = where(prompt_T, x0_T, z_T)
+    x̂_prev = x̂
+
+<span class="c"># ---- 出口，按任务分</span>
+if task == TTS:
+    mel = z_V · latent_std + latent_mean        <span class="c"># (512, 100)</span>
+    波形 = VocosVocoder(mel)                     <span class="c"># 冻结。(1, 131072)</span>
+else:  <span class="c"># S2T，多一次 forward</span>
+    _, _, logits = model(z_T, z_V, sc=x̂_prev, <span class="n2">t=1.0</span>, task,
+                         whisper_feat, decode_head_active=True)
+    token_ids = argmax(logits[tok0 : tok0+48])   <span class="c"># (48,) → 截到第一个 EOS</span>
+    转录 = T5Tokenizer.decode(token_ids)
+</pre>
+<div class="note"><b>推理的 forward 次数：TTS 是 32 次，S2T 是 33 次</b>（多最后那一次 t=1 的 decode head）。训练每步 <b>3 次</b> forward，其中 2 次是 no_grad、只为构造目标。</div>
+</section>
+<section><p class="eyebrow">Solver 与 time schedule</p><h2 class="m">训练和推理用的不是同一个分布</h2>
+<div class="t-scroll"><table><thead><tr><th></th><th>训练 · denoiser 分支</th><th>训练 · decoder 分支</th><th>推理</th></tr></thead><tbody>
+<tr><td>t 的来源</td><td class="n">sigmoid(𝒩(−1.5, 0.8))</td><td class="n">t 直接 = 1.0<br>λ ~ sigmoid(𝒩(−0.5, 0.8))</td><td class="n">linspace(0, 1, 33)<br>均匀</td></tr>
+<tr><td>均值 / 中位</td><td class="n">0.209 / 0.182</td><td class="n">λ: 0.392 / 0.377</td><td class="n">0.5 / 0.5</td></tr>
+<tr><td>p5 → p95</td><td class="n">0.057 → 0.455</td><td class="n">0.140 → 0.693</td><td class="n">0 → 1</td></tr>
+<tr><td>P(t &gt; 0.5)</td><td class="n">3.0%</td><td class="n">26.6%</td><td class="n">50%</td></tr>
+<tr><td>P(t &gt; 0.75)</td><td class="n">0.05%</td><td class="n">2.27%</td><td class="n">25%</td></tr>
+<tr><td>噪声尺度</td><td class="n">× 2.0</td><td class="n">× 5.0</td><td class="n">× 2.0（起点）</td></tr>
+<tr><td>用来做什么</td><td>flow matching 的 L2</td><td>decode head 的交叉熵</td><td>Euler 积分</td></tr>
+</tbody></table></div>
+<div class="note"><b>推理必须用均匀网格，这一点我试错过。</b>一度把采样网格改成匹配训练 t 密度的 logit-normal —— <b>更差</b>：<code>sigmoid(𝒩(−1.5,0.8))</code> 的内部点全在 0.5 以下，32 步只覆盖到 t=0.26，最后一步从那里直接跳到 1.0，是一个巨大的 Euler 步。ODE 积分必须覆盖整个 [0,1]，和训练时 t 的密度无关。唯一一次成功从 ELF 无条件生成出通顺英文，用的就是均匀网格。</div>
+<div class="note"><b>audio forcing 改的就是 decoder 分支那一列。</b>ELF 原值 <code>decoder_p_mean = 0.8</code> 给 λ 均值 0.69 —— latent 太干净，decode head 直接从它读答案、用不着看音频。改成 −0.5 后 λ 均值 0.392，实测 <code>ce_acc</code> 从 91.7% 掉到 74%（head 变难了，这正是目的），S2T 的 WER 从 106.66% 降到 50.13%。</div>
+<div class="t-scroll"><table><tbody>
+<tr><td>Solver</td><td class="n">显式 Euler（一阶）</td><td><code>z += h · (x̂0 − z)/clamp(1−t, t_eps)</code>，无自适应步长、无高阶项</td></tr>
+<tr><td>ODE</td><td class="n">dz/dt = (x̂0 − z)/(1−t)</td><td>由 <code>z = t·x0 + (1−t)·ε·s</code> 对 t 求导得到</td></tr>
+<tr><td><code>t_eps</code></td><td class="n">0.05</td><td>t &gt; 0.95 后分母被钳住，速度上限 20×。否则 t→1 时分母为零</td></tr>
+<tr><td>NFE</td><td class="n">32（TTS） / 33（S2T）</td><td>S2T 多一次 t=1 的 decode head forward</td></tr>
+<tr><td>自条件</td><td class="n">每步喂上一步的 x̂₀</td><td>训练时以 0.5 的概率丢掉，推理时一直开</td></tr>
+<tr><td>SDE</td><td class="n">实现了但没用</td><td>γ 从 0 扫到 3，最终误差只从 0.8140 动到 0.8185 —— 对我们这个模型无效</td></tr>
+</tbody></table></div>
+</section>
+<p class="foot">所有数字由 <code>train_unified.py</code> / <code>unified.py</code> 实例化后打印：序列长度与有效位置数来自真实 batch 的 mask 统计（batch 64、TTS 33 行 / S2T 31 行），t 的分位数来自 400,000 次采样。</p>
+</div>

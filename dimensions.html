@@ -1,0 +1,901 @@
+<title>Shapes End to End</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+  :root{
+    color-scheme: light;
+    --paper:#f3f5f7; --card:#fbfbfc; --sunk:#eceff2;
+    --ink:#15181e; --ink-2:#4a515c; --ink-3:#79818d;
+    --rule:#d6dbe1; --rule-2:#e6e9ee;
+    --voice:#12707b; --voice-soft:#dbedef; --voice-edge:#7fbcc3;
+    --text-ch:#965909; --text-soft:#f4e6d2; --text-edge:#d4a768;
+    --elf:#4f5865; --elf-soft:#e3e6ea;
+    --frozen:#5d5a7d; --frozen-soft:#e6e4ee;
+    --ok:#1a6a44; --bad:#9c2a20;
+    --sans:"IBM Plex Sans Condensed","Helvetica Neue",Arial,sans-serif;
+    --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+    --measure:66ch;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --paper:#10131a; --card:#171b23; --sunk:#1c212a;
+    --ink:#e6eaf0; --ink-2:#a5aeba; --ink-3:#6f7883;
+    --rule:#2a313b; --rule-2:#212731;
+    --voice:#46c0cc; --voice-soft:#103036; --voice-edge:#2a6e77;
+    --text-ch:#deab5e; --text-soft:#352616; --text-edge:#7d5c2a;
+    --elf:#98a2ae; --elf-soft:#232933;
+    --frozen:#a8a3c6; --frozen-soft:#232132;
+    --ok:#56c48c; --bad:#e8857a;
+  }}
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --paper:#10131a; --card:#171b23; --sunk:#1c212a;
+    --ink:#e6eaf0; --ink-2:#a5aeba; --ink-3:#6f7883;
+    --rule:#2a313b; --rule-2:#212731;
+    --voice:#46c0cc; --voice-soft:#103036; --voice-edge:#2a6e77;
+    --text-ch:#deab5e; --text-soft:#352616; --text-edge:#7d5c2a;
+    --elf:#98a2ae; --elf-soft:#232933;
+    --frozen:#a8a3c6; --frozen-soft:#232132;
+    --ok:#56c48c; --bad:#e8857a;
+  }
+
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:var(--serif); font-size:16.5px; line-height:1.62;
+    padding-inline:20px; padding-block:0; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1020px; margin:0 auto; padding-block:46px 72px;}
+  .m{max-width:var(--measure);}
+
+  h1{font-family:var(--sans); font-weight:700;
+     font-size:clamp(30px,5.4vw,46px); line-height:1.05;
+     letter-spacing:-.015em; margin:0 0 14px; text-wrap:balance;}
+  h2{font-family:var(--sans); font-weight:600;
+     font-size:clamp(21px,3vw,26px); line-height:1.2; margin:0 0 10px;
+     text-wrap:balance;}
+  h3{font-family:var(--sans); font-weight:600; font-size:17px; margin:0 0 8px;}
+  p{margin:0 0 14px;}
+
+  .eyebrow{font-family:var(--mono); font-size:11px; font-weight:500;
+    letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3);
+    margin:0 0 7px;}
+  .lede{font-size:19px; line-height:1.55; color:var(--ink-2);}
+  code{font-family:var(--mono); font-size:.885em; background:var(--sunk);
+    padding:.1em .34em; border-radius:3px;}
+
+  section{margin-top:44px; padding-top:26px; border-top:1px solid var(--rule);}
+  section:first-of-type{border-top:0; padding-top:0;}
+
+  figure{margin:26px 0 0;}
+  .fig-scroll{overflow-x:auto; margin-inline:-4px; padding-inline:4px;}
+  svg.d{display:block; width:100%; max-width:100%; height:auto;
+        color:var(--ink);}
+  svg.wide{min-width:900px;}
+  svg.med{min-width:660px;}
+  figcaption{font-size:14px; line-height:1.5; color:var(--ink-2);
+    margin-top:11px; max-width:var(--measure);}
+  figcaption b{font-family:var(--sans); color:var(--ink);}
+
+  .t-scroll{overflow-x:auto; margin-top:20px;}
+  table{border-collapse:collapse; width:100%; min-width:620px; font-size:14.5px;}
+  th,td{text-align:left; padding:8px 14px 8px 0;
+    border-bottom:1px solid var(--rule-2); vertical-align:top;}
+  th{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--ink-3); font-weight:500;
+    border-bottom:1px solid var(--rule);}
+  td.n{font-family:var(--mono); font-variant-numeric:tabular-nums;
+    white-space:nowrap;}
+  td.sh{font-family:var(--mono); white-space:nowrap; font-size:13.5px;}
+  .ax{font-family:var(--serif); font-size:11.5px; color:var(--ink-3);
+    white-space:nowrap;}
+  tr.sum td{font-family:var(--sans); font-weight:600;
+    border-top:1px solid var(--rule); border-bottom:0;}
+  .tag{font-family:var(--mono); font-size:10px; letter-spacing:.08em;
+    text-transform:uppercase; padding:2px 6px; border-radius:3px;
+    font-weight:500; white-space:nowrap;}
+  .t-elf{background:var(--elf-soft); color:var(--elf);}
+  .t-new{background:var(--voice-soft); color:var(--voice);}
+  .t-frz{background:var(--frozen-soft); color:var(--frozen);}
+
+  pre{font-family:var(--mono); font-size:13px; line-height:1.68;
+    background:var(--card); border:1px solid var(--rule); border-radius:5px;
+    padding:14px 16px; overflow-x:auto; margin:18px 0 0; color:var(--ink);}
+  pre .c{color:var(--ink-3);}
+  pre b{color:var(--voice); font-weight:600;}
+
+  .note{border-left:2px solid var(--text-ch); padding:2px 0 2px 15px;
+    margin:22px 0 0; max-width:var(--measure); font-size:15.5px;
+    color:var(--ink-2);}
+  .note b{color:var(--ink); font-family:var(--sans);}
+
+  .foot{margin-top:50px; padding-top:20px; border-top:1px solid var(--rule);
+    font-family:var(--mono); font-size:11.5px; color:var(--ink-3);
+    line-height:1.7;}
+</style>
+
+<div class="wrap">
+
+<section>
+  <p class="eyebrow">Unified TTS + S2T · 维度</p>
+  <h1 class="m">从一个波形到 32100 个 logit</h1>
+  <p class="lede m">
+    每个形状都注明了<b>每个轴数的是什么</b>，而不只是数字 ——
+    哪个是时间、哪个是频带、哪个是词表。数字全部从模型里实测打印，不是推算。
+    一行数据从磁盘上的波形出发，经过八个模块，最后分成两个出口：
+    语音出口 100 维（mel 频带），文本出口 32100 维（词表）。
+  </p>
+</section>
+
+
+<section>
+  <p class="eyebrow">先说清楚</p>
+  <h2 class="m">每个轴是什么</h2>
+  <p class="m">
+    形状里的数字如果不说明是哪个轴，看起来会很像。
+    下面这张表把整条路上出现过的每一种轴列齐，
+    而且先指出一个真的会把人绕进去的巧合。
+  </p>
+
+  <div class="note" style="border-color:var(--bad)">
+    <b><code>(4, 512, 512)</code> 里那两个 512 完全是两回事。</b>
+    前一个是<b>时间帧数</b>（<code>max_length</code>，我们选的 512 帧 = 5.46 秒），
+    后一个是 <b>T5 的隐藏维度</b>（t5-small 的 <code>d_model</code> 恰好也是 512）。
+    两者没有任何关系，只是数值撞了。把 <code>max_length</code> 改成 384，
+    形状就变成 <code>(4, 384, 512)</code>。
+  </div>
+
+  <div class="t-scroll">
+    <table>
+      <thead><tr><th>轴</th><th>典型值</th><th>它数的是什么</th>
+        <th>谁决定它</th></tr></thead>
+      <tbody>
+        <tr><td class="n">B</td><td class="n">4 / 32</td>
+            <td><b>batch 里第几条音频</b>。每一行是一个独立的音频片段</td>
+            <td>我们选的 batch size</td></tr>
+        <tr><td class="n">n_samples</td><td class="n">212893</td>
+            <td><b>波形的采样点个数</b>。22050 Hz 下一秒 22050 个数</td>
+            <td>音频有多长</td></tr>
+        <tr><td class="n">1</td><td class="n">1</td>
+            <td><b>声道数</b>。单声道，所以是 1</td>
+            <td>数据集</td></tr>
+        <tr><td class="n">T</td><td class="n">906 → 512</td>
+            <td><b>时间帧数</b>。每帧 256 个采样点（hop），
+                所以 93.75 帧/秒。906 是整条音频，512 是裁剪后进 batch 的</td>
+            <td>hop 256 和我们选的 <code>max_length</code></td></tr>
+        <tr><td class="n">100</td><td class="n">100</td>
+            <td><b>mel 频带数</b>。每一帧是一个 100 维的频谱切片：
+                第 0 维是最低频，第 99 维是最高频</td>
+            <td>Vocos 的配置，不能改（声码器就认这 100 个）</td></tr>
+        <tr><td class="n">N</td><td class="n">19</td>
+            <td><b>真实 token 个数</b>。这段转录被 T5 切成多少个 subword</td>
+            <td>文本本身</td></tr>
+        <tr><td class="n">48</td><td class="n">48</td>
+            <td><b>token 槽位数</b>（<code>max_text</code>）。N 个真 token
+                放在前面，后面补 0。固定长度是为了能堆成张量</td>
+            <td>我们选的，取 p99 之上</td></tr>
+        <tr><td class="n">512</td><td class="n">512</td>
+            <td><b>T5 的隐藏维度</b>。t5-small 给每个 token 一个 512 维向量。
+                也是 ELF 的 <code>text_encoder_dim</code>，所以文本通道是 512 宽</td>
+            <td>t5-small，不能改</td></tr>
+        <tr><td class="n">1736</td><td class="n">1736</td>
+            <td><b>拼起来的特征通道数</b>。每个位置把五块接在一起：
+                文本 512 + 文本自条件 512 + 语音 100 + 语音自条件 100
+                + 字符条件 512</td>
+            <td>我们的设计</td></tr>
+        <tr><td class="n">128</td><td class="n">128</td>
+            <td><b>瓶颈宽度</b>。ELF 强制输入先降到 128 再升上去</td>
+            <td>ELF 的 <code>bottleneck_dim</code></td></tr>
+        <tr><td class="n">768</td><td class="n">768</td>
+            <td><b>transformer 的隐藏宽度</b>。12 层里每个位置就是一个
+                768 维向量，分 12 个头，每头 64 维</td>
+            <td>ELF-B 的规格</td></tr>
+        <tr><td class="n">32100</td><td class="n">32100</td>
+            <td><b>词表大小</b>。decode head 给每一帧输出 32100 个打分，
+                取 argmax 就是那一帧猜的 token</td>
+            <td>T5 的词表，不能改</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">第 0 步</p>
+  <h2 class="m">最开始，一行数据是一条波形</h2>
+  <p class="m">
+    不是频谱、不是特征 —— 就是磁盘上那个音频文件。
+    下面用 <code>LJ001-0001.wav</code> 走一遍真实数字。
+  </p>
+
+  <figure>
+    <div class="fig-scroll">
+      <svg class="d med" viewBox="0 0 700 232" role="img"
+           aria-label="一条 9.66 秒 22050 Hz 的单声道波形，212893 个采样点，重采样到 24 kHz 得到 231721 点，经过 Vocos 的 mel 提取（n_fft 1024、hop 256、100 个 mel 通道）得到 906 帧乘 100 维，再随机裁剪到 512 帧乘 100 维进入 batch。">
+        <defs>
+          <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <!-- waveform -->
+        <rect x="0" y="34" width="150" height="26" rx="3" fill="var(--voice-soft)"
+              stroke="var(--voice)" stroke-width="1.5"/>
+        <text x="75" y="51" text-anchor="middle" font-family="var(--mono)"
+              font-size="11.5" fill="currentColor">(1, 212893)</text>
+        <text x="0" y="24" font-family="var(--mono)" font-size="10.5"
+              fill="currentColor" opacity=".6">磁盘上的 .wav · 22050 Hz · 单声道</text>
+        <text x="0" y="76" font-family="var(--mono)" font-size="10.5"
+              fill="currentColor" opacity=".55">= 9.66 秒</text>
+
+        <line x1="150" y1="47" x2="196" y2="47" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#a1)"/>
+        <text x="173" y="40" text-anchor="middle" font-family="var(--mono)"
+              font-size="9.5" fill="currentColor" opacity=".6">重采样</text>
+
+        <rect x="200" y="34" width="150" height="26" rx="3" fill="var(--voice-soft)"
+              stroke="var(--voice)" stroke-width="1.5"/>
+        <text x="275" y="51" text-anchor="middle" font-family="var(--mono)"
+              font-size="11.5" fill="currentColor">(1, 231721)</text>
+        <text x="200" y="24" font-family="var(--mono)" font-size="10.5"
+              fill="currentColor" opacity=".6">24 kHz（Vocos 要求）</text>
+
+        <!-- mel -->
+        <line x1="275" y1="60" x2="275" y2="108" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#a1)"/>
+        <text x="288" y="88" font-family="var(--mono)" font-size="10.5"
+              fill="var(--frozen)">Vocos MelSpectrogramFeatures（冻结，0 可训练参数）</text>
+        <text x="288" y="102" font-family="var(--mono)" font-size="9.5"
+              fill="currentColor" opacity=".55">n_fft 1024 · hop 256 · n_mels 100</text>
+
+        <rect x="200" y="114" width="150" height="26" rx="3"
+              fill="var(--voice-soft)" stroke="var(--voice)" stroke-width="1.5"/>
+        <text x="275" y="131" text-anchor="middle" font-family="var(--mono)"
+              font-size="11.5" fill="currentColor">(906, 100)</text>
+        <text x="200" y="158" font-family="var(--mono)" font-size="9.5"
+              fill="currentColor" opacity=".55">231721 / 256 = 906 帧 @ 93.75 Hz</text>
+
+        <!-- crop -->
+        <line x1="350" y1="127" x2="396" y2="127" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#a1)"/>
+        <text x="373" y="120" text-anchor="middle" font-family="var(--mono)"
+              font-size="9.5" fill="currentColor" opacity=".6">随机裁剪</text>
+
+        <rect x="400" y="114" width="150" height="26" rx="3"
+              fill="var(--voice-soft)" stroke="var(--voice)" stroke-width="2"/>
+        <text x="475" y="131" text-anchor="middle" font-family="var(--mono)"
+              font-size="11.5" fill="currentColor">(512, 100)</text>
+        <text x="400" y="104" font-family="var(--mono)" font-size="10.5"
+              fill="var(--voice)">进入 batch 的那一行</text>
+        <text x="400" y="158" font-family="var(--mono)" font-size="9.5"
+              fill="currentColor" opacity=".55">从第 a 帧起取 512 帧 = 5.46 秒</text>
+
+        <!-- normalize -->
+        <line x1="475" y1="140" x2="475" y2="182" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#a1)"/>
+        <text x="488" y="166" font-family="var(--mono)" font-size="10.5"
+              fill="currentColor">(mel − (−1.9704)) / 2.4158</text>
+
+        <rect x="400" y="188" width="150" height="26" rx="3"
+              fill="url(#hvx)" stroke="var(--voice)" stroke-width="2"/>
+        <text x="475" y="205" text-anchor="middle" font-family="var(--mono)"
+              font-size="11.5" fill="currentColor">x0_v (512, 100)</text>
+        <text x="0" y="205" font-family="var(--mono)" font-size="10.5"
+              fill="currentColor" opacity=".7">语音目标，实测 std 1.028</text>
+        <defs>
+          <pattern id="hvx" width="7" height="7" patternUnits="userSpaceOnUse"
+                   patternTransform="rotate(45)">
+            <rect width="7" height="7" fill="var(--voice-soft)"/>
+            <line x1="0" y1="0" x2="0" y2="7" stroke="var(--voice)"
+                  stroke-width="2.1"/>
+          </pattern>
+        </defs>
+      </svg>
+    </div>
+    <figcaption>
+      <b>语音侧没有任何学出来的 encoder。</b>
+      Vocos 的 mel 提取是确定性的信号处理（STFT + mel 滤波器组 + log），
+      参数为零；归一化只是减均值除标准差。所以模型看到的
+      <code>x0_v</code> 就是 mel 本身，没有被任何网络变换过。
+    </figcaption>
+  </figure>
+</section>
+
+<section>
+  <p class="eyebrow">第 1 步</p>
+  <h2 class="m">一个 batch 行里到底有什么</h2>
+  <p class="m">
+    batch size 4、<code>max_length</code> 512、<code>max_text</code> 48 时，
+    collate 实际吐出来的张量。<code>L = 512</code> 是序列长度，
+    channel 布局下语音和文本占同一批位置。
+  </p>
+
+  <div class="t-scroll">
+    <table>
+      <thead><tr><th>键</th><th>形状</th><th>dtype</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><code>mel</code></td><td class="sh">(4, 512, 100)<br><span class="ax">B · 帧 · mel频带</span></td>
+            <td class="n">float32</td><td>原始 log-mel，裁剪后的 512 帧</td></tr>
+        <tr><td><code>t5_dense</code></td><td class="sh">(4, 48)<br><span class="ax">B · token槽位</span></td>
+            <td class="n">int64</td>
+            <td>这段音频对应转录的 T5 token id，密集排列，不足补 0</td></tr>
+        <tr><td><code>t5_dmask</code></td><td class="sh">(4, 48)<br><span class="ax">B · token槽位</span></td>
+            <td class="n">float32</td>
+            <td>哪些 slot 是真 token —— T5 encoder 的 attention mask</td></tr>
+        <tr><td><code>t5_idx</code></td><td class="sh">(4, 512)<br><span class="ax">B · 帧</span></td>
+            <td class="n">int64</td>
+            <td><b>升采样索引</b>：第 j 帧读 <code>t5_dense</code> 的哪个 slot，
+                <code>⌊j·N/T⌋</code>。这就是「对齐」</td></tr>
+        <tr><td><code>t5_tok</code></td><td class="sh">(4, 512)<br><span class="ax">B · 帧</span></td>
+            <td class="n">int64</td><td>逐帧的交叉熵目标（升采样后的 token id）</td></tr>
+        <tr><td><code>chars</code></td><td class="sh">(4, 512)<br><span class="ax">B · 帧</span></td>
+            <td class="n">int64</td>
+            <td>逐帧的字符 id（比 token 更细的对齐信号），词表 40</td></tr>
+        <tr><td><code>v_act</code></td><td class="sh">(4, 512)<br><span class="ax">B · 帧</span></td>
+            <td class="n">float32</td><td>语音通道在这个位置是否存在</td></tr>
+        <tr><td><code>t_act</code></td><td class="sh">(4, 512)<br><span class="ax">B · 帧</span></td>
+            <td class="n">float32</td><td>文本通道在这个位置是否存在</td></tr>
+        <tr><td><code>prompt_v</code></td><td class="sh">(4, 512)<br><span class="ax">B · 帧</span></td>
+            <td class="n">float32</td>
+            <td><b>语音通道是否被钉在干净值上。</b>S2T 时全 1（音频是条件），
+                TTS 时只有前 K 帧是 1（voice prompt）</td></tr>
+        <tr><td><code>prompt_t</code></td><td class="sh">(4, 512)<br><span class="ax">B · 帧</span></td>
+            <td class="n">float32</td>
+            <td><b>文本通道是否干净。</b>TTS 时全 1（文本是条件），S2T 时全 0</td></tr>
+        <tr><td><code>valid</code></td><td class="sh">(4, 512)<br><span class="ax">B · 帧</span></td>
+            <td class="n">float32</td><td>非 padding 的位置，也是 attention mask</td></tr>
+        <tr><td><code>task</code></td><td class="sh">(4,)<br><span class="ax">B，每行一个</span></td>
+            <td class="n">int64</td><td>0 = TTS，1 = S2T。逐样本 Bernoulli 抽的</td></tr>
+        <tr><td><code>crop_a</code></td><td class="sh">(4,)<br><span class="ax">B，每行一个</span></td>
+            <td class="n">int64</td><td>裁剪起始帧，评测时要用它对齐原始波形</td></tr>
+        <tr><td><code>n_text</code>, <code>text_start</code></td>
+            <td class="sh">(4,)<br><span class="ax">B，每行一个</span></td><td class="n">int64</td>
+            <td>真 token 数、文本块起点（channel 布局下恒为 0）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <b>「干净 / 加噪」是按通道标的，不是按位置。</b>
+    channel 布局下两个通道占同一批位置但状态不同，所以必须是
+    <code>prompt_v</code> 和 <code>prompt_t</code> 两个 mask。
+    这是从 token 布局改过来时唯一的结构性改动。
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">第 2 步</p>
+  <h2 class="m">两个目标：100 维和 512 维</h2>
+  <p class="m">
+    语音目标直接就是归一化的 mel。文本目标要先过 T5 encoder，
+    再按 <code>t5_idx</code> 升采样到帧率。
+  </p>
+
+  <figure>
+    <div class="fig-scroll">
+      <svg class="d med" viewBox="0 0 700 176" role="img"
+           aria-label="t5_dense 形状 4 乘 48 的 token id 经过冻结的 t5-small encoder 得到 4 乘 48 乘 512，除以 latent_std 0.2，再按 t5_idx 升采样 gather 成 4 乘 512 乘 512 的文本目标。">
+        <rect x="0" y="30" width="138" height="26" rx="3"
+              fill="var(--text-soft)" stroke="var(--text-edge)" stroke-width="1.5"/>
+        <text x="69" y="47" text-anchor="middle" font-family="var(--mono)"
+              font-size="11.5" fill="currentColor">(4, 48)</text>
+        <text x="0" y="20" font-family="var(--mono)" font-size="10.5"
+              fill="currentColor" opacity=".6">t5_dense · token id</text>
+
+        <line x1="138" y1="43" x2="184" y2="43" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#a1)"/>
+        <rect x="188" y="24" width="190" height="38" rx="4"
+              fill="var(--frozen-soft)" stroke="var(--frozen)" stroke-width="1.5"/>
+        <text x="283" y="40" text-anchor="middle" font-family="var(--mono)"
+              font-size="11" fill="currentColor">t5-small encoder</text>
+        <text x="283" y="54" text-anchor="middle" font-family="var(--mono)"
+              font-size="9.5" fill="var(--frozen)">冻结 · 35.33M · 0 可训练</text>
+
+        <line x1="378" y1="43" x2="424" y2="43" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#a1)"/>
+        <rect x="428" y="30" width="150" height="26" rx="3"
+              fill="var(--text-soft)" stroke="var(--text-edge)" stroke-width="1.5"/>
+        <text x="503" y="47" text-anchor="middle" font-family="var(--mono)"
+              font-size="11.5" fill="currentColor">(4, 48, 512)</text>
+        <text x="428" y="20" font-family="var(--mono)" font-size="10.5"
+              fill="currentColor" opacity=".6">逐 token 的 latent</text>
+
+        <line x1="503" y1="56" x2="503" y2="92" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#a1)"/>
+        <text x="516" y="78" font-family="var(--mono)" font-size="10.5"
+              fill="currentColor">÷ latent_std 0.2 — ELF 自己的约定</text>
+
+        <line x1="300" y1="110" x2="424" y2="110" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#a1)"/>
+        <text x="300" y="103" font-family="var(--mono)" font-size="10.5"
+              fill="currentColor" opacity=".7">按 t5_idx gather（升采样到帧率）</text>
+        <text x="300" y="138" font-family="var(--mono)" font-size="9.5"
+              fill="currentColor" opacity=".55">约 25 帧共享一个 token 的 latent</text>
+
+        <rect x="428" y="97" width="150" height="26" rx="3" fill="url(#htx)"
+              stroke="var(--text-ch)" stroke-width="2"/>
+        <text x="503" y="114" text-anchor="middle" font-family="var(--mono)"
+              font-size="11.5" fill="currentColor">x0_t (4, 512, 512)</text>
+        <text x="428" y="152" font-family="var(--mono)" font-size="10.5"
+              fill="currentColor" opacity=".7">文本目标，实测 std 0.771</text>
+        <defs>
+          <pattern id="htx" width="7" height="7" patternUnits="userSpaceOnUse"
+                   patternTransform="rotate(45)">
+            <rect width="7" height="7" fill="var(--text-soft)"/>
+            <line x1="0" y1="0" x2="0" y2="7" stroke="var(--text-ch)"
+                  stroke-width="2.1"/>
+          </pattern>
+        </defs>
+      </svg>
+    </div>
+    <figcaption>
+      <b>那个 0.2 不是我挑的，是测出来的。</b>
+      ELF 的 <code>config.yml</code> 只写了 <code>latent_std: 0.2</code>，
+      没说是对 embedding 表还是 encoder 输出。让 ELF 无条件采样，
+      它生成通顺英文且 x₀ 的 std 稳定在 0.81–0.88；
+      t5-small 的 encoder 输出 std 是 0.1585，÷0.2 = 0.79 吻合，
+      而 embedding 表的 std 是 17.26，差一百倍。
+    </figcaption>
+  </figure>
+</section>
+
+
+<section>
+  <p class="eyebrow">升采样</p>
+  <h2 class="m">短的变成长的：19 个 token 展开成 512 帧</h2>
+  <p class="m">
+    这是整个设计里最该讲清楚的一步。文本是<b>短</b>序列（19 个 token），
+    语音是<b>长</b>序列（512 帧）。要让两者占同一批位置，
+    就得把短的那个<b>重复展开</b>到长的那个的长度 ——
+    不是插值、不是平均，是<b>整段复制</b>。
+  </p>
+
+  <figure>
+    <div class="fig-scroll">
+      <svg class="d med" viewBox="0 0 700 224" role="img"
+           aria-label="19 个 token 的短序列通过索引 t5_idx 等于 j 乘 N 除以 T 向下取整，展开成 512 帧的长序列。第 0 个 token was 占据第 0 到 26 帧，第 1 个 token of 占据第 27 到 53 帧，每个 token 连续占据 26 到 27 帧。">
+        <defs>
+          <marker id="au" viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <!-- short: tokens -->
+        <text x="0" y="18" font-family="var(--mono)" font-size="10.5"
+              fill="var(--text-ch)">短序列 · N = 19 个 token</text>
+        <g font-family="var(--mono)" font-size="10">
+          <rect x="0" y="28" width="62" height="24" fill="var(--text-soft)"
+                stroke="var(--text-ch)" stroke-width="1.4"/>
+          <text x="31" y="44" text-anchor="middle" fill="currentColor">was</text>
+          <rect x="62" y="28" width="52" height="24" fill="var(--text-soft)"
+                stroke="var(--text-ch)" stroke-width="1.4"/>
+          <text x="88" y="44" text-anchor="middle" fill="currentColor">of</text>
+          <rect x="114" y="28" width="62" height="24" fill="var(--text-soft)"
+                stroke="var(--text-ch)" stroke-width="1.4"/>
+          <text x="145" y="44" text-anchor="middle" fill="currentColor">gold</text>
+          <rect x="176" y="28" width="46" height="24" fill="var(--text-soft)"
+                stroke="var(--text-ch)" stroke-width="1.4"/>
+          <text x="199" y="44" text-anchor="middle" fill="currentColor">or</text>
+          <rect x="222" y="28" width="68" height="24" fill="var(--text-soft)"
+                stroke="var(--text-ch)" stroke-width="1.4"/>
+          <text x="256" y="44" text-anchor="middle" fill="currentColor">silver</text>
+          <rect x="290" y="28" width="40" height="24" fill="var(--text-soft)"
+                stroke="var(--text-ch)" stroke-width="1.4"
+                stroke-dasharray="3 2"/>
+          <text x="310" y="44" text-anchor="middle" fill="currentColor"
+                opacity=".6">…</text>
+        </g>
+        <text x="340" y="44" font-family="var(--mono)" font-size="9.5"
+              fill="currentColor" opacity=".55">每个 token 一个 512 维 latent</text>
+
+        <!-- the index -->
+        <text x="0" y="78" font-family="var(--mono)" font-size="11"
+              fill="currentColor">t5_idx[j] = ⌊ j · N / T ⌋ = ⌊ j · 19 / 512 ⌋</text>
+        <text x="0" y="94" font-family="var(--mono)" font-size="9.5"
+              fill="currentColor" opacity=".55">第 j 帧去读第几个 token</text>
+        <line x1="150" y1="104" x2="150" y2="126" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#au)"/>
+
+        <!-- long: frames -->
+        <text x="0" y="148" font-family="var(--mono)" font-size="10.5"
+              fill="var(--voice)">长序列 · T = 512 帧（每帧 10.67 ms）</text>
+        <g font-family="var(--mono)" font-size="9">
+          <rect x="0" y="158" width="88" height="24" fill="var(--text-soft)"
+                stroke="var(--text-ch)" stroke-width="1.4"/>
+          <text x="44" y="174" text-anchor="middle" fill="currentColor">was ×27</text>
+          <rect x="88" y="158" width="88" height="24" fill="var(--text-soft)"
+                stroke="var(--text-ch)" stroke-width="1.4"/>
+          <text x="132" y="174" text-anchor="middle" fill="currentColor">of ×27</text>
+          <rect x="176" y="158" width="88" height="24" fill="var(--text-soft)"
+                stroke="var(--text-ch)" stroke-width="1.4"/>
+          <text x="220" y="174" text-anchor="middle" fill="currentColor">gold ×27</text>
+          <rect x="264" y="158" width="86" height="24" fill="var(--text-soft)"
+                stroke="var(--text-ch)" stroke-width="1.4"/>
+          <text x="307" y="174" text-anchor="middle" fill="currentColor">or ×26</text>
+          <rect x="350" y="158" width="88" height="24" fill="var(--text-soft)"
+                stroke="var(--text-ch)" stroke-width="1.4"/>
+          <text x="394" y="174" text-anchor="middle" fill="currentColor">silver ×27</text>
+          <rect x="438" y="158" width="60" height="24" fill="var(--text-soft)"
+                stroke="var(--text-ch)" stroke-width="1.4"
+                stroke-dasharray="3 2"/>
+          <text x="468" y="174" text-anchor="middle" fill="currentColor"
+                opacity=".6">…</text>
+        </g>
+        <text x="0" y="198" font-family="var(--mono)" font-size="9.5"
+              fill="currentColor" opacity=".55">帧 0–26 全部拿到 'was' 那同一个 512 维向量</text>
+        <text x="0" y="214" font-family="var(--mono)" font-size="9.5"
+              fill="currentColor" opacity=".55">实测：每个 token 连续占 26–27 帧，平均 26.9</text>
+      </svg>
+    </div>
+    <figcaption>
+      <b>方向是短 → 长。</b>
+      19 个 token 变成 512 帧，每个 token 的那一个 512 维向量被
+      <b>原样复制</b> 26–27 次。所以 <code>x0_t</code> 的形状是
+      <code>(512 帧, 512 维)</code>，但里面只有 19 个不同的向量。
+      对齐就是这么「给」的：第 j 帧天然知道自己属于哪个 token，
+      注意力不用去发现。
+    </figcaption>
+  </figure>
+
+  <pre>t5_idx 的前 80 帧（每一帧指向第几个 token）：
+  帧   0- 19:   0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+  帧  20- 39:   0  0  0  0  0  0  0  <b>1  1  1  1  1  1  1  1  1  1  1  1  1</b>
+  帧  40- 59:   1  1  1  1  1  1  1  1  1  1  1  1  1  1  <b>2  2  2  2  2  2</b>
+  帧  60- 79:   2  2  2  2  2  2  2  2  2  2  2  2  2  2  2  2  2  2  2  2
+
+换成文字看：
+  was was was was was … was was <b>of of of</b> … of of <b>gold gold gold</b> …</pre>
+
+  <div class="note">
+    <b>代价是这个对齐是均匀的，而真实语速不是。</b>
+    我用 Whisper 的词级时间戳量过真实对齐：每字符占的帧数在
+    第 5 和第 95 百分位之间差 <b>6.6 倍</b>（有的字拖很长，有的一掠而过）。
+    均匀假设给的是一个粗的对齐。TTS 方向能容忍它（模型可以在 prompt 的
+    引导下自己微调时长），S2T 方向它直接成了精度上限 ——
+    因为逐帧解码出来的 token 边界就按这个假设摆。
+  </div>
+
+  <h3 style="margin-top:30px">反过来：S2T 解码时长 → 短</h3>
+  <p class="m">
+    生成方向上，模型给 512 帧每一帧都输出一个 token，所以要收回去：
+  </p>
+  <pre>decode head 输出        (512 帧, 32100)
+argmax 逐帧             (512,)   = [was,was,…,was, of,of,…,of, gold,…]
+合并相邻重复（CTC 式）   (19,)    = [was, of, gold, or, silver, …]
+                        ↑ 这一步把长序列收回短序列</pre>
+  <p class="m" style="font-size:14.5px;color:var(--ink-2)">
+    代价：真实文本里连着重复的词（"the the"）会被合并成一个。
+    标准做法是插入 blank token 隔开；我们目前接受这个偶发错误。
+  </p>
+</section>
+
+<section>
+  <p class="eyebrow">第 3 步</p>
+  <h2 class="m">八个模块，两个出口</h2>
+  <p class="m">
+    这是 forward 的全部。方框的高度按 <code>log₂</code> 编码通道维度，
+    所以 128 的瓶颈和 32100 的出口都能在一张图里看见。
+  </p>
+
+  <figure>
+    <div class="fig-scroll">
+      <svg class="d wide" viewBox="0 0 940 330" role="img"
+           aria-label="五个输入块拼成 1736 维，经 self_cond_proj 降到 512，经 text_proj 的 128 维瓶颈升到 768，拼上 16 个 prefix token 后过 12 层 ELFBlock，输出 768 维分两路：final_layer 到 512 再经 voice_out 到 100 维的语音预测，以及 proj_kernel 到 512 再经 unembed 到 32100 维的 token logits。">
+        <defs>
+          <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <!-- 1736 input, five stacked blocks -->
+        <text x="0" y="14" font-family="var(--mono)" font-size="10.5"
+              fill="currentColor" opacity=".6">每个位置的输入 · 1736</text>
+        <rect x="0" y="130" width="62" height="20" fill="var(--text-soft)"
+              stroke="var(--text-edge)" stroke-width="1.2"/>
+        <text x="31" y="144" text-anchor="middle" font-family="var(--mono)"
+              font-size="9" fill="currentColor">z_T 512</text>
+        <rect x="0" y="150" width="62" height="20" fill="var(--text-soft)"
+              stroke="var(--text-edge)" stroke-width="1.2"/>
+        <text x="31" y="164" text-anchor="middle" font-family="var(--mono)"
+              font-size="9" fill="currentColor">sc_T 512</text>
+        <rect x="0" y="170" width="62" height="10" fill="var(--voice-soft)"
+              stroke="var(--voice)" stroke-width="1.2"/>
+        <text x="72" y="178" font-family="var(--mono)" font-size="8.5"
+              fill="var(--voice)">z_V 100</text>
+        <rect x="0" y="180" width="62" height="10" fill="var(--voice-soft)"
+              stroke="var(--voice)" stroke-width="1.2"/>
+        <text x="72" y="189" font-family="var(--mono)" font-size="8.5"
+              fill="var(--voice)">sc_V 100</text>
+        <rect x="0" y="190" width="62" height="20" fill="var(--elf-soft)"
+              stroke="var(--elf)" stroke-width="1.2"/>
+        <text x="31" y="204" text-anchor="middle" font-family="var(--mono)"
+              font-size="9" fill="currentColor">cond 512</text>
+
+        <line x1="62" y1="170" x2="106" y2="170" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#a2)"/>
+        <text x="84" y="163" text-anchor="middle" font-family="var(--mono)"
+              font-size="8.5" fill="currentColor" opacity=".6">concat</text>
+
+        <!-- self_cond_proj -> 512 -->
+        <rect x="110" y="148" width="56" height="44" rx="3"
+              fill="var(--elf-soft)" stroke="var(--elf)" stroke-width="1.5"/>
+        <text x="138" y="174" text-anchor="middle" font-family="var(--mono)"
+              font-size="11" fill="currentColor">512</text>
+        <text x="138" y="140" text-anchor="middle" font-family="var(--mono)"
+              font-size="9" fill="currentColor" opacity=".7">self_cond_proj</text>
+
+        <line x1="166" y1="170" x2="206" y2="170" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#a2)"/>
+
+        <!-- proj1 -> 128 bottleneck -->
+        <rect x="210" y="161" width="46" height="18" rx="3"
+              fill="var(--elf-soft)" stroke="var(--elf)" stroke-width="1.5"/>
+        <text x="233" y="174" text-anchor="middle" font-family="var(--mono)"
+              font-size="10" fill="currentColor">128</text>
+        <text x="233" y="153" text-anchor="middle" font-family="var(--mono)"
+              font-size="9" fill="currentColor" opacity=".7">proj1</text>
+        <text x="233" y="196" text-anchor="middle" font-family="var(--mono)"
+              font-size="8.5" fill="currentColor" opacity=".5">瓶颈</text>
+
+        <line x1="256" y1="170" x2="296" y2="170" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#a2)"/>
+
+        <!-- proj2 -> 768 -->
+        <rect x="300" y="144" width="52" height="52" rx="3"
+              fill="var(--elf-soft)" stroke="var(--elf)" stroke-width="1.5"/>
+        <text x="326" y="174" text-anchor="middle" font-family="var(--mono)"
+              font-size="11" fill="currentColor">768</text>
+        <text x="326" y="136" text-anchor="middle" font-family="var(--mono)"
+              font-size="9" fill="currentColor" opacity=".7">proj2</text>
+
+        <line x1="352" y1="170" x2="392" y2="170" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#a2)"/>
+        <text x="372" y="162" text-anchor="middle" font-family="var(--mono)"
+              font-size="8.5" fill="currentColor" opacity=".6">+16</text>
+
+        <!-- 12 blocks -->
+        <rect x="396" y="144" width="150" height="52" rx="3" fill="var(--card)"
+              stroke="currentColor" stroke-width="1.8"/>
+        <text x="471" y="166" text-anchor="middle" font-family="var(--sans)"
+              font-size="12" font-weight="600" fill="currentColor">12 × ELFBlock</text>
+        <text x="471" y="181" text-anchor="middle" font-family="var(--mono)"
+              font-size="9.5" fill="currentColor" opacity=".65">768 · 12 头 · head 64</text>
+        <text x="396" y="136" font-family="var(--mono)" font-size="9"
+              fill="currentColor" opacity=".7">序列长 512+16 = 528</text>
+        <text x="396" y="212" font-family="var(--mono)" font-size="9"
+              fill="currentColor" opacity=".55">85.05M 参数 = 全模型的 81%</text>
+
+        <line x1="546" y1="170" x2="586" y2="170" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#a2)"/>
+        <text x="566" y="162" text-anchor="middle" font-family="var(--mono)"
+              font-size="8.5" fill="currentColor" opacity=".6">−16</text>
+
+        <!-- split point -->
+        <circle cx="592" cy="170" r="3" fill="currentColor"/>
+        <text x="580" y="192" font-family="var(--mono)" font-size="9"
+              fill="currentColor" opacity=".6">768</text>
+
+        <!-- branch A: final_layer -> voice_out -->
+        <path d="M 592 170 L 606 170 L 606 248 L 640 248" fill="none"
+              stroke="var(--voice)" stroke-width="1.6" marker-end="url(#a2)"
+              color="var(--voice)"/>
+        <rect x="644" y="226" width="56" height="44" rx="3"
+              fill="var(--elf-soft)" stroke="var(--elf)" stroke-width="1.5"/>
+        <text x="672" y="252" text-anchor="middle" font-family="var(--mono)"
+              font-size="11" fill="currentColor">512</text>
+        <text x="672" y="219" text-anchor="middle" font-family="var(--mono)"
+              font-size="9" fill="currentColor" opacity=".7">final_layer</text>
+        <line x1="700" y1="248" x2="740" y2="248" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#a2)"/>
+        <rect x="744" y="241" width="48" height="14" rx="3" fill="url(#hvx2)"
+              stroke="var(--voice)" stroke-width="2"/>
+        <text x="768" y="233" text-anchor="middle" font-family="var(--mono)"
+              font-size="9" fill="var(--voice)">voice_out</text>
+        <text x="802" y="252" font-family="var(--mono)" font-size="11"
+              fill="currentColor">100</text>
+        <text x="744" y="282" font-family="var(--mono)" font-size="10"
+              fill="var(--voice)">x̂₀ 语音 — mel 预测</text>
+
+        <!-- branch B: proj_kernel -> unembed -->
+        <path d="M 592 170 L 606 170 L 606 92 L 640 92" fill="none"
+              stroke="var(--text-ch)" stroke-width="1.6" marker-end="url(#a2)"
+              color="var(--text-ch)"/>
+        <rect x="644" y="70" width="56" height="44" rx="3"
+              fill="var(--elf-soft)" stroke="var(--elf)" stroke-width="1.5"/>
+        <text x="672" y="96" text-anchor="middle" font-family="var(--mono)"
+              font-size="11" fill="currentColor">512</text>
+        <text x="672" y="63" text-anchor="middle" font-family="var(--mono)"
+              font-size="9" fill="currentColor" opacity=".7">proj_kernel + gelu</text>
+        <line x1="700" y1="92" x2="740" y2="92" stroke="currentColor"
+              stroke-width="1.3" marker-end="url(#a2)"/>
+        <rect x="744" y="18" width="56" height="148" rx="3" fill="url(#htx2)"
+              stroke="var(--text-ch)" stroke-width="2"/>
+        <text x="772" y="96" text-anchor="middle" font-family="var(--mono)"
+              font-size="11" fill="currentColor">32100</text>
+        <text x="810" y="60" font-family="var(--mono)" font-size="10"
+              fill="var(--text-ch)">unembed</text>
+        <text x="810" y="76" font-family="var(--mono)" font-size="10"
+              fill="currentColor" opacity=".7">token logits</text>
+        <text x="810" y="92" font-family="var(--mono)" font-size="9"
+              fill="currentColor" opacity=".55">仅 S2T 行启用</text>
+
+        <defs>
+          <pattern id="hvx2" width="7" height="7" patternUnits="userSpaceOnUse"
+                   patternTransform="rotate(45)">
+            <rect width="7" height="7" fill="var(--voice-soft)"/>
+            <line x1="0" y1="0" x2="0" y2="7" stroke="var(--voice)"
+                  stroke-width="2.1"/>
+          </pattern>
+          <pattern id="htx2" width="7" height="7" patternUnits="userSpaceOnUse"
+                   patternTransform="rotate(45)">
+            <rect width="7" height="7" fill="var(--text-soft)"/>
+            <line x1="0" y1="0" x2="0" y2="7" stroke="var(--text-ch)"
+                  stroke-width="2.1"/>
+          </pattern>
+        </defs>
+      </svg>
+    </div>
+    <figcaption>
+      <b>两个出口读的是同一个 768 维隐状态。</b>
+      <code>final_layer</code> 和 <code>proj_kernel</code> 都从 12 层之后的
+      那个 <code>x</code> 分出去，这正是 ELF 的「late discretization」：
+      一直待在连续空间里，只在最后一步映射到 token。
+      <code>+16 / −16</code> 是 prefix token：拼进去过注意力，出来之前切掉。
+    </figcaption>
+  </figure>
+
+  <div class="t-scroll">
+    <table>
+      <thead><tr><th>模块</th><th>输入 (位置, 通道)</th><th>输出 (位置, 通道)</th><th>参数</th>
+        <th>来源</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><code>char_embed</code></td><td class="sh">(L,) int64</td>
+            <td class="sh">(L, 512)</td><td class="n">20,480</td>
+            <td><span class="tag t-new">新</span></td>
+            <td>逐帧字符 id → 向量，词表 40。比 T5 token 更细的对齐信号</td></tr>
+        <tr><td><code>cond_norm</code></td><td class="sh">(L, 512)</td>
+            <td class="sh">(L, 512)</td><td class="n">512</td>
+            <td><span class="tag t-new">新</span></td>
+            <td>RMSNorm。std-0.02 的嵌入表比 z 弱约 50 倍，归一化放到同一量级</td></tr>
+        <tr><td><code>self_cond_proj</code></td><td class="sh">(L, 1736)</td>
+            <td class="sh">(L, 512)</td><td class="n">889,344</td>
+            <td><span class="tag t-elf">ELF</span></td>
+            <td>把五个通道块压成一个。ELF 原本 1024 列，前 1024 列原样装入预训练权重</td></tr>
+        <tr><td><code>text_proj.proj1</code></td><td class="sh">(L, 512)</td>
+            <td class="sh">(L, 128)</td><td class="n">65,536</td>
+            <td><span class="tag t-elf">ELF</span></td>
+            <td>瓶颈。ELF 自己的设计，强制输入先过一个低秩投影</td></tr>
+        <tr><td><code>text_proj.proj2</code></td><td class="sh">(L, 128)</td>
+            <td class="sh">(L, 768)</td><td class="n">99,072</td>
+            <td><span class="tag t-elf">ELF</span></td>
+            <td>升到主干宽度</td></tr>
+        <tr><td><code>t_embedder</code></td><td class="sh">(B,) float</td>
+            <td class="sh">(B, 768)</td><td class="n">787,968</td>
+            <td><span class="tag t-elf">ELF</span></td>
+            <td>把 flow 时间 t 编成向量（正弦 + MLP），加到 4 个 time token 上</td></tr>
+        <tr><td><code>task_tokens</code></td><td class="sh">task_id (B,)</td>
+            <td class="sh">(B, 4, 768)</td><td class="n">6,144</td>
+            <td><span class="tag t-new">新</span></td>
+            <td><b>选方向。</b>2 任务 × 4 token × 768，逐行门控。
+                实测切换使输出变化 4.00%</td></tr>
+        <tr><td><code>mode_tokens</code></td><td class="sh">—</td>
+            <td class="sh">(4, 768)</td><td class="n">3,072</td>
+            <td><span class="tag t-elf">ELF</span></td>
+            <td>标记 decoder / denoiser 分支。已被占用，所以任务标记只能另起一组</td></tr>
+        <tr><td><code>12 × ELFBlock</code></td><td class="sh">(L+16, 768)</td>
+            <td class="sh">(L+16, 768)</td><td class="n">85,049,856</td>
+            <td><span class="tag t-elf">ELF</span></td>
+            <td>主干。每块 = RMSNorm + 双向自注意力(2.36M) + RMSNorm + MLP(4.72M)</td></tr>
+        <tr><td><code>final_layer</code></td><td class="sh">(L, 768)</td>
+            <td class="sh">(L, 512)</td><td class="n">394,496</td>
+            <td><span class="tag t-elf">ELF</span></td>
+            <td>denoiser 的输出层。RMSNorm + 零初始化的线性层</td></tr>
+        <tr><td><code>voice_out</code></td><td class="sh">(L, 512)</td>
+            <td class="sh">(L, 100)</td><td class="n">51,300</td>
+            <td><span class="tag t-new">新</span></td>
+            <td><b>语音出口。</b>隐宽 768 必须以某种方式到 100 —— 这不是
+                encoder，之前那个 work 的单任务模型就是 <code>final_layer</code>
+                直接出 100</td></tr>
+        <tr><td><code>proj_kernel</code> + gelu</td><td class="sh">(L, 768)</td>
+            <td class="sh">(L, 512)</td><td class="n">393,728</td>
+            <td><span class="tag t-elf">ELF</span></td>
+            <td>decode head 的第一段</td></tr>
+        <tr><td><code>unembed</code></td><td class="sh">(L, 512)</td>
+            <td class="sh">(L, 32100)</td><td class="n">16,467,300</td>
+            <td><span class="tag t-elf">ELF</span></td>
+            <td><b>文本出口。</b>T5 词表。预训练权重开箱即用，实测还原准确率 93.1%</td></tr>
+        <tr class="sum"><td>合计</td><td></td><td></td>
+            <td class="n">105,022,920</td><td></td>
+            <td>其中 442,980（0.42%）是新增，其余来自 ELF 权重</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="margin-top:32px">另外两个冻结的模块，不在上表里</h3>
+  <div class="t-scroll">
+    <table>
+      <tbody>
+        <tr><td><code>Vocos MelSpectrogramFeatures</code></td>
+            <td class="sh">(1, n) 波形</td><td class="sh">(T, 100)</td>
+            <td class="n">0</td>
+            <td><span class="tag t-frz">冻结</span></td>
+            <td>确定性信号处理：STFT + mel 滤波器组 + log。没有可训练参数</td></tr>
+        <tr><td><code>t5-small encoder</code></td>
+            <td class="sh">(B, 48) int64</td><td class="sh">(B, 48, 512)</td>
+            <td class="n">35,330,816</td>
+            <td><span class="tag t-frz">冻结</span></td>
+            <td>文本侧唯一的 encoder。<code>requires_grad_(False)</code></td></tr>
+        <tr><td><code>Vocos 声码器</code></td>
+            <td class="sh">(T, 100) mel</td><td class="sh">(1, T·256) 波形</td>
+            <td class="n">13,530,000</td>
+            <td><span class="tag t-frz">冻结</span></td>
+            <td>只在评测时用。<b>mel ceiling 这一轨就是真实 mel 过它</b>，
+                完全不经过我们的模型</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">第 4 步</p>
+  <h2 class="m">一步训练：三次 forward，两个分支，一个分母</h2>
+
+  <pre><span class="c"># 1. 加噪：每行一个 t</span>
+t  ~ sigmoid(N(-1.5, 0.8))                 <span class="c">(B,)</span>
+z_v = restore(t*x0_v + (1-t)*eps*2.0, x0_v, prompt_v)   <span class="c">(B,512,100)</span>
+z_t = restore(t*x0_t + (1-t)*eps*2.0, x0_t, prompt_t)   <span class="c">(B,512,512)</span>
+
+<span class="c"># 2. 两次 no_grad forward，构造 ELF 的锐化目标</span>
+x_u      = model(z_t, z_v, <b>自条件=0</b>,  ...)            <span class="c">-&gt; (B,512,512),(B,512,100)</span>
+v_c      = model(z_t, z_v, <b>自条件=x_u</b>, ...)
+guidance = (1 - 1/sc_cfg) * (v_c - v_u)    <span class="c">一半的行会丢掉这项</span>
+v_target = (x0 - z)/clamp(1-t, 0.05) + guidance
+
+<span class="c"># 3. 带梯度的那一次</span>
+d = Bernoulli(0.2) * is_s2t                <span class="c">(B,)  decode head 只给 S2T 行</span>
+xh_t, xh_v, logits = model(z_t_in, z_v, sc_t, sc_v, chars, t_in, <b>task</b>, ...)
+                                           <span class="c">(B,512,512) (B,512,100) (B,512,32100)</span>
+
+<span class="c"># 4. 单一分母 —— decoder_prob 0.2 就是 CE 的实际权重</span>
+loss = ( sum(CE * m_ce) + sum(L2 * m_l2) ) / sum(m)</pre>
+
+  <div class="note">
+    <b>L2 只作用在该行加噪的那个通道。</b>
+    TTS 行算 <code>xh_v</code> 的速度误差（100 维上取均值），
+    S2T 行算 <code>xh_t</code> 的（512 维上取均值）。
+    因为两者都已归一化到 per-dim std ≈ 1，取均值后量级可比。
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">第 5 步</p>
+  <h2 class="m">采样</h2>
+  <pre>z[目标通道] = eps * 2.0                     <span class="c">从噪声出发</span>
+z[条件通道] = x0                            <span class="c">全程钉死在干净值</span>
+ts = linspace(0, 1, 33)                     <span class="c">均匀 32 步</span>
+for i in range(32):
+    xh = model(...)                         <span class="c">(B,512,512), (B,512,100)</span>
+    z += h * (xh - z)/clamp(1-t, 0.05)
+    z = restore(z, x0, prompt)              <span class="c">条件通道重新钉回</span>
+
+<span class="c"># TTS: z_v * std + mean -> (512,100) log-mel -> Vocos -> (1, 131072) 波形</span>
+<span class="c"># S2T: t=1 过 decode head -> (512,32100) -> argmax 逐帧 -> 合并相邻重复</span></pre>
+  <p class="m" style="margin-top:14px">
+    采样网格试过改成匹配训练 t 密度的 logit-normal，<b>更差</b> ——
+    <code>sigmoid(N(-1.5,0.8))</code> 的内部点全在 0.5 以下，
+    32 步只覆盖到 t=0.26，最后一步从那里直接跳到 1.0。
+    ODE 积分必须覆盖整个 [0,1]，和训练时 t 的密度无关。
+  </p>
+</section>
+
+<p class="foot">
+  每个维度与参数量都由 <code>unified.py</code> / <code>train_unified.py</code>
+  实例化后打印得到，模型 ELF-B、<code>max_length</code> 512、
+  <code>max_text</code> 48、channel 布局。<br>
+  mel 的数字来自 <code>LJ001-0001.wav</code>；
+  <code>latent_mean/std</code> 为 LibriSpeech train-clean-100 的
+  −1.9704 / 2.4158。
+</p>
+
+</div>
